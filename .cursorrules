@@ -1,0 +1,72 @@
+# Tenant Management System - Cursor Rules
+
+## Project Overview
+A web-based tenant management system for a rental property business.
+Built with Laravel 13, Blade, Tailwind CSS, Alpine.js, and Flowbite.
+
+## Tech Stack
+- Backend: Laravel 13, PHP 8.3
+- Frontend: Blade templates, Tailwind CSS, Alpine.js, Flowbite
+- Database: MySQL
+- Auth: Laravel Breeze (Blade)
+- Local Server: Laragon (Windows)
+
+## User Roles
+- admin — property owner, full access
+- tenant — limited access to own lease, payments, notifications
+
+## Database Tables
+users: id, name, email, password, role (enum: admin/tenant), remember_token, timestamps
+password_reset_tokens: email, token, created_at
+properties: id, name, address, description, timestamps, deleted_at
+units: id, property_id (FK), unit_number, unit_type, rent_price, status (enum: vacant/occupied), timestamps, deleted_at
+tenants: id, user_id (FK), phone_number, emergency_contact_name, emergency_contact_number, address, timestamps, deleted_at
+leases: id, tenant_id (FK), unit_id (FK), start_date, end_date, monthly_rent, deposit_amount, deposit_status (enum: held/returned/forfeited), status (enum: active/completed/terminated), timestamps, deleted_at
+payments: id, lease_id (FK), amount_paid, due_date, payment_date (nullable), payment_method (enum: cash/gcash/bank_transfer/maya), proof_of_payment (nullable, file path), verified_at (nullable timestamp), status (enum: pending/paid/late/rejected), remarks (nullable), timestamps
+notifications: id, user_id (FK), type, data (JSON), read_at (nullable), timestamps
+
+## Relationships
+- User hasOne Tenant
+- User hasMany Notifications
+- Property hasMany Units
+- Unit belongsTo Property
+- Unit hasMany Leases
+- Tenant belongsTo User
+- Tenant hasMany Leases
+- Lease belongsTo Tenant
+- Lease belongsTo Unit
+- Lease hasMany Payments
+- Payment belongsTo Lease
+
+## Coding Conventions
+- Use Laravel MVC architecture
+- Controllers go in App\Http\Controllers
+- Admin controllers go in App\Http\Controllers\Admin
+- Tenant controllers go in App\Http\Controllers\Tenant
+- Use Route::middleware(['auth', 'role:admin']) for admin routes
+- Use Route::middleware(['auth', 'role:tenant']) for tenant routes
+- Blade views go in resources/views
+- Admin views go in resources/views/admin
+- Tenant views go in resources/views/tenant
+- Shared layouts go in resources/views/layouts
+- Use SoftDeletes on Property, Unit, Tenant, Lease models
+- Always use $fillable in models
+- Use Tailwind CSS utility classes only, no custom CSS unless necessary
+- Use Flowbite components for UI (modals, tables, badges, dropdowns)
+- Use Alpine.js for interactivity (no jQuery)
+- File uploads stored in storage/app/public/payments
+
+## Status Badge Colors (Tailwind + Flowbite)
+- paid / active / occupied = green
+- pending / vacant = yellow
+- late / rejected / terminated = red
+- completed = blue
+- held = gray
+
+## DO NOT
+- Do not use jQuery
+- Do not use Vue or React
+- Do not use any payment gateway
+- Do not create overly complex logic
+- Do not use inline styles
+- Do not skip $fillable in models

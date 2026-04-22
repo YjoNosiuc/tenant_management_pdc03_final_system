@@ -1,0 +1,63 @@
+<?php
+
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\LeaseController as AdminLeaseController;
+use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
+use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Admin\PropertyController as AdminPropertyController;
+use App\Http\Controllers\Admin\TenantController as AdminTenantController;
+use App\Http\Controllers\Admin\UnitController as AdminUnitController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
+use App\Http\Controllers\Tenant\NotificationController as TenantNotificationController;
+use App\Http\Controllers\Tenant\PaymentController as TenantPaymentController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    if (auth()->check()) {
+        if (auth()->user()->role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect()->route('tenant.dashboard');
+    }
+    return redirect()->route('login');
+});
+
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::resource('properties', AdminPropertyController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('units', AdminUnitController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('tenants', AdminTenantController::class)->except(['create', 'edit']);
+        Route::resource('leases', AdminLeaseController::class)->except(['create', 'edit']);
+        Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
+        Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
+        Route::patch('/payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->name('payments.verify');
+        Route::patch('/payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('payments.reject');
+        Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
+        Route::patch('/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+        Route::patch('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    });
+
+    Route::middleware(['role:tenant'])->prefix('tenant')->name('tenant.')->group(function () {
+        Route::get('/dashboard', [TenantDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/payments', [TenantPaymentController::class, 'index'])->name('payments.index');
+        Route::get('/payments/{payment}', [TenantPaymentController::class, 'show'])->name('payments.show');
+        Route::post('/payments/{payment}/proof', [TenantPaymentController::class, 'submitProof'])->name('payments.submitProof');
+        Route::get('/notifications', [TenantNotificationController::class, 'index'])->name('notifications.index');
+        Route::patch('/notifications/read-all', [TenantNotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+        Route::patch('/notifications/{id}/read', [TenantNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    });
+});
+
+require __DIR__.'/auth.php';
