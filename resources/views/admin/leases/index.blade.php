@@ -14,7 +14,7 @@
             editOpen: false,
             deleteOpen: false,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
-            selectedLease: { id: null, tenant_id: '', unit_id: '', start_date: '', end_date: '', monthly_rent: '', deposit_amount: '', deposit_status: 'held', status: 'active' },
+            selectedLease: { id: null, tenant_id: '', unit_id: '', start_date: '', end_date: '', monthly_rent: '', deposit_amount: '', deposit_status: 'held', status: 'active', notes: '', inclusions: [] },
             deleteLease: { id: null, tenant_name: '' },
             search: '',
             filterStatus: '',
@@ -43,7 +43,9 @@
                     monthly_rent: @js(old('monthly_rent', '')),
                     deposit_amount: @js(old('deposit_amount', '')),
                     deposit_status: @js(old('deposit_status', 'held')),
-                    status: @js(old('status', 'active'))
+                    status: @js(old('status', 'active')),
+                    notes: @js(old('notes', '')),
+                    inclusions: @json(old('inclusions', []))
                 };
             @endif
         "
@@ -210,7 +212,10 @@
                                             <div class="flex items-center gap-3">
                                                 <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">{{ $tenantInitials }}</div>
                                                 <div>
-                                                    <p class="font-semibold text-slate-800">{{ $tenantName ?: '—' }}</p>
+                                                    <a href="{{ route('admin.leases.show', $lease) }}"
+                                                       class="font-semibold text-slate-800 hover:text-indigo-600 transition-colors duration-150 hover:underline underline-offset-2">
+                                                        {{ $tenantName ?: '—' }}
+                                                    </a>
                                                     <p class="text-xs text-slate-400 mt-0.5">{{ $prop?->name ?? '—' }}</p>
                                                 </div>
                                             </div>
@@ -263,9 +268,9 @@
                                             <div class="flex items-center justify-end gap-1">
                                                 <a
                                                     href="{{ route('admin.leases.show', $lease) }}"
-                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
-                                                    title="View"
-                                                    aria-label="View"
+                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
+                                                    title="View Lease"
+                                                    aria-label="View Lease"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
                                                 </a>
@@ -284,6 +289,8 @@
                                                         'deposit_amount' => $lease->deposit_amount !== null ? (string) $lease->deposit_amount : '',
                                                         'deposit_status' => $lease->deposit_status,
                                                         'status' => $lease->status,
+                                                        'notes' => $lease->notes ?? '',
+                                                        'inclusions' => $lease->inclusions ?? [],
                                                     ]); editOpen = true"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
@@ -468,6 +475,62 @@
                                     @enderror
                                 </div>
                             </div>
+
+                            {{-- Divider --}}
+                            <div class="border-t border-slate-100 pt-4">
+                                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
+                                    Additional Information (Optional)
+                                </p>
+
+                                {{-- Inclusions --}}
+                                <div class="mb-4">
+                                    <label class="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                        Inclusions
+                                    </label>
+                                    <p class="text-xs text-slate-400 mb-3">Select what is included in the monthly rent</p>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        @foreach(['Water', 'Electricity', 'Internet/WiFi', 'Parking', 'Cable TV', 'Trash Collection'] as $inclusion)
+                                        <label class="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-150 has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50 has-[:checked]:ring-1 has-[:checked]:ring-indigo-200">
+                                            <input type="checkbox"
+                                                   name="inclusions[]"
+                                                   value="{{ $inclusion }}"
+                                                   @checked(old('_form') === 'create' && in_array($inclusion, old('inclusions', []), true))
+                                                   class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600" />
+                                            <span class="text-sm font-medium text-slate-700">{{ $inclusion }}</span>
+                                        </label>
+                                        @endforeach
+                                    </div>
+                                    @error('inclusions')
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">{{ $message }}</p>
+                                    @enderror
+                                    @error('inclusions.*')
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                {{-- Notes --}}
+                                <div>
+                                    <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                        </svg>
+                                        Notes & Special Agreements
+                                    </label>
+                                    <textarea
+                                        name="notes"
+                                        rows="3"
+                                        placeholder="e.g. Tenant is allowed to have pets. Parking slot #3 is included."
+                                        class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 resize-none"
+                                    >{{ old('_form') === 'create' ? old('notes') : '' }}</textarea>
+                                    <p class="mt-1 text-xs text-slate-400">Optional. Max 1000 characters.</p>
+                                    @error('notes')
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
                         </div>
                         <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4">
                             <button type="button" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-50 active:scale-[0.98]" @click="createOpen = false">Cancel</button>
@@ -632,6 +695,63 @@
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
                                             {{ $message }}
                                         </p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            {{-- Divider --}}
+                            <div class="border-t border-slate-100 pt-4">
+                                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
+                                    Additional Information (Optional)
+                                </p>
+
+                                {{-- Inclusions --}}
+                                <div class="mb-4">
+                                    <label class="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                        Inclusions
+                                    </label>
+                                    <p class="text-xs text-slate-400 mb-3">Select what is included in the monthly rent</p>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        @foreach(['Water', 'Electricity', 'Internet/WiFi', 'Parking', 'Cable TV', 'Trash Collection'] as $inclusion)
+                                        <label class="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-150 has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50 has-[:checked]:ring-1 has-[:checked]:ring-indigo-200">
+                                            <input type="checkbox"
+                                                   name="inclusions[]"
+                                                   value="{{ $inclusion }}"
+                                                   :checked="(selectedLease.inclusions ?? []).includes({{ \Illuminate\Support\Js::from($inclusion) }})"
+                                                   class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600" />
+                                            <span class="text-sm font-medium text-slate-700">{{ $inclusion }}</span>
+                                        </label>
+                                        @endforeach
+                                    </div>
+                                    @error('inclusions')
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">{{ $message }}</p>
+                                    @enderror
+                                    @error('inclusions.*')
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                {{-- Notes --}}
+                                <div>
+                                    <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                        </svg>
+                                        Notes & Special Agreements
+                                    </label>
+                                    <textarea
+                                        name="notes"
+                                        rows="3"
+                                        placeholder="e.g. Tenant is allowed to have pets. Parking slot #3 is included."
+                                        x-model="selectedLease.notes"
+                                        class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 resize-none"
+                                    ></textarea>
+                                    <p class="mt-1 text-xs text-slate-400">Optional. Max 1000 characters.</p>
+                                    @error('notes')
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">{{ $message }}</p>
                                     @enderror
                                 </div>
                             </div>

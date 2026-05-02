@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Lease;
+use App\Models\Payment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\CreatesTestData;
@@ -231,5 +232,143 @@ class LeaseTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Lease Details');
+    }
+
+    public function test_creating_a_lease_automatically_generates_payments_for_entire_duration(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'vacant');
+
+        $this->actingAs($admin)
+            ->from(route('admin.leases.index'))
+            ->post(route('admin.leases.store'), [
+                'tenant_id' => $tenantUser->tenant->id,
+                'unit_id' => $unit->id,
+                'start_date' => '2026-04-25',
+                'end_date' => '2027-04-25',
+                'monthly_rent' => 10000.00,
+                'deposit_amount' => 20000.00,
+                'deposit_status' => 'held',
+                'status' => 'active',
+            ]);
+
+        $lease = Lease::query()->latest('id')->firstOrFail();
+        $payments = Payment::query()->where('lease_id', $lease->id)->orderBy('due_date')->get();
+
+        $this->assertCount(12, $payments);
+        $this->assertSame('2026-05-25', $payments->first()->due_date->format('Y-m-d'));
+        $this->assertSame('2027-04-25', $payments->last()->due_date->format('Y-m-d'));
+
+        foreach ($payments as $payment) {
+            $this->assertSame('pending', $payment->status);
+            $this->assertEquals(10000.00, (float) $payment->amount_paid);
+        }
+    }
+
+    public function test_updating_lease_end_date_regenerates_payments(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'vacant');
+
+        $this->actingAs($admin)
+            ->from(route('admin.leases.index'))
+            ->post(route('admin.leases.store'), [
+                'tenant_id' => $tenantUser->tenant->id,
+                'unit_id' => $unit->id,
+                'start_date' => '2026-04-25',
+                'end_date' => '2027-04-25',
+                'monthly_rent' => 5000.00,
+                'deposit_status' => 'held',
+                'status' => 'active',
+            ]);
+
+        $lease = Lease::query()->latest('id')->firstOrFail();
+        $this->assertCount(12, Payment::query()->where('lease_id', $lease->id)->get());
+
+        $this->actingAs($admin)
+            ->from(route('admin.leases.show', $lease))
+            ->patch(route('admin.leases.update', $lease), [
+                'tenant_id' => $tenantUser->tenant->id,
+                'unit_id' => $unit->id,
+                'start_date' => '2026-04-25',
+                'end_date' => '2027-07-25',
+                'monthly_rent' => 5000.00,
+                'deposit_status' => 'held',
+                'status' => 'active',
+            ]);
+
+        $lease->refresh();
+        $this->assertCount(15, Payment::query()->where('lease_id', $lease->id)->get());
+    }
+
+    public function test_updating_lease_does_not_delete_already_paid_payments(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'vacant');
+
+        $this->actingAs($admin)
+            ->from(route('admin.leases.index'))
+            ->post(route('admin.leases.store'), [
+                'tenant_id' => $tenantUser->tenant->id,
+                'unit_id' => $unit->id,
+                'start_date' => '2026-04-25',
+                'end_date' => '2027-04-25',
+                'monthly_rent' => 10000.00,
+                'deposit_status' => 'held',
+                'status' => 'active',
+            ]);
+
+        $lease = Lease::query()->latest('id')->firstOrFail();
+        $firstPayment = Payment::query()
+            ->where('lease_id', $lease->id)
+            ->orderBy('due_date')
+            ->firstOrFail();
+
+        $firstPayment->update([
+            'status' => 'paid',
+            'verified_at' => now(),
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'gcash',
+        ]);
+
+        $paidId = $firstPayment->id;
+
+        $this->actingAs($admin)
+            ->from(route('admin.leases.show', $lease))
+            ->patch(route('admin.leases.update', $lease), [
+                'tenant_id' => $tenantUser->tenant->id,
+                'unit_id' => $unit->id,
+                'start_date' => '2026-04-25',
+                'end_date' => '2027-04-25',
+                'monthly_rent' => 12000.00,
+                'deposit_status' => 'held',
+                'status' => 'active',
+            ]);
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $paidId,
+            'lease_id' => $lease->id,
+            'status' => 'paid',
+        ]);
+
+        $this->assertSame(1, Payment::query()->where('lease_id', $lease->id)->where('status', 'paid')->count());
+        $this->assertSame(11, Payment::query()->where('lease_id', $lease->id)->where('status', 'pending')->count());
+
+        $pendingAmounts = Payment::query()
+            ->where('lease_id', $lease->id)
+            ->where('status', 'pending')
+            ->pluck('amount_paid')
+            ->map(fn ($v) => (float) $v)
+            ->unique()
+            ->values();
+
+        $this->assertCount(1, $pendingAmounts);
+        $this->assertEquals(12000.00, $pendingAmounts->first());
     }
 }

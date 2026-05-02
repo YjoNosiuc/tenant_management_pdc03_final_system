@@ -4,20 +4,14 @@
 
 @section('content')
     @php
-        $paymentDot = fn (string $status) => match ($status) {
-            'paid' => 'bg-emerald-500',
-            'pending' => 'bg-amber-500',
-            'late' => 'bg-rose-500',
-            'rejected' => 'bg-rose-500',
-            default => 'bg-slate-400',
-        };
-        $paymentShell = fn (string $status) => match ($status) {
-            'paid' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
-            'pending' => 'bg-amber-50 text-amber-800 ring-amber-100',
-            'late' => 'bg-rose-50 text-rose-800 ring-rose-100',
-            'rejected' => 'bg-rose-50 text-rose-800 ring-rose-100',
-            default => 'bg-slate-50 text-slate-700 ring-slate-100',
-        };
+        $statusConfig = [
+            'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
+            'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+            'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
+            'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
+            'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],
+        ];
+        $paymentCfg = fn (string $status) => $statusConfig[$status] ?? $statusConfig['pending'];
     @endphp
 
     <div
@@ -150,26 +144,75 @@
                                     </td>
                                     <td class="px-4 py-3 font-bold text-indigo-700">₱{{ number_format((float) $row->amount_paid, 2) }}</td>
                                     <td class="px-4 py-3">
-                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $paymentShell($row->status) }}">
-                                            <span class="h-1.5 w-1.5 rounded-full {{ $paymentDot($row->status) }}"></span>
-                                            {{ ucfirst($row->status) }}
+                                        @php $st = $paymentCfg($row->status); @endphp
+                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold {{ $st[0] }}">
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $st[1] }}"></span>
+                                            {{ $st[2] }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-3">
-                                        @if($row->proof_of_payment)
-                                            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-                                                <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                                                Submitted
-                                            </span>
-                                        @elseif(in_array($row->status, ['pending', 'late'], true))
+                                        @php $isEarliest = $earliestUnpaidPaymentId !== null && (int) $row->id === (int) $earliestUnpaidPaymentId; @endphp
+                                        @if($row->status === 'pending' && $isEarliest)
                                             <button
                                                 type="button"
                                                 class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
                                                 @click="openUpload({{ $row->id }}, '{{ number_format((float) $row->amount_paid, 2, '.', '') }}')"
                                             >
                                                 <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                                                Upload
+                                                @if($row->due_date->copy()->startOfDay()->gt(now()->startOfDay())) Pay Early @else Pay Now @endif
                                             </button>
+                                        @elseif($row->status === 'pending' && ! $isEarliest)
+                                            <span class="relative inline-flex" title="Pay {{ $earliestUnpaidDueLabel ?? 'earlier month' }} first">
+                                                <button type="button" disabled class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-400">
+                                                    <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                                                    Pay {{ $earliestUnpaidDueLabel ?? 'first' }}
+                                                </button>
+                                            </span>
+                                        @elseif($row->status === 'verifying' && $isEarliest)
+                                            <div class="flex flex-col gap-1">
+                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600">
+                                                    <svg class="h-3 w-3 shrink-0 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                                    Verifying...
+                                                </span>
+                                                <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition-colors hover:text-indigo-600" @click="openUpload({{ $row->id }}, '{{ number_format((float) $row->amount_paid, 2, '.', '') }}')">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                                    Resubmit
+                                                </button>
+                                            </div>
+                                        @elseif($row->status === 'rejected' && $isEarliest)
+                                            <div class="flex flex-col gap-1">
+                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
+                                                    <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                                    Rejected
+                                                </span>
+                                                <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-red-500 transition-colors hover:text-red-700" @click="openUpload({{ $row->id }}, '{{ number_format((float) $row->amount_paid, 2, '.', '') }}')">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                                    Resubmit
+                                                </button>
+                                            </div>
+                                        @elseif($row->status === 'paid')
+                                            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                                                <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                                Paid
+                                            </span>
+                                        @elseif($row->status === 'late' && $isEarliest)
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                                                @click="openUpload({{ $row->id }}, '{{ number_format((float) $row->amount_paid, 2, '.', '') }}')"
+                                            >
+                                                <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                                                Pay Now
+                                            </button>
+                                        @elseif($row->status === 'late' && ! $isEarliest)
+                                            <span title="Pay {{ $earliestUnpaidDueLabel ?? 'earlier month' }} first">
+                                                <button type="button" disabled class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-400">
+                                                    <svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                                                    Pay Now
+                                                </button>
+                                            </span>
+                                        @elseif(in_array($row->status, ['verifying', 'rejected'], true) && ! $isEarliest)
+                                            <span class="text-xs text-slate-400">—</span>
                                         @else
                                             <span class="text-slate-400">—</span>
                                         @endif

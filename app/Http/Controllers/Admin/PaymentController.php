@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class PaymentController extends Controller
             ->paginate(10);
 
         $pendingCount = $this->scopedPaymentsQuery()->where('status', 'pending')->count();
+        $verifyingCount = $this->scopedPaymentsQuery()->where('status', 'verifying')->count();
         $paidCount = $this->scopedPaymentsQuery()->where('status', 'paid')->count();
         $lateCount = $this->scopedPaymentsQuery()->where('status', 'late')->count();
         $rejectedCount = $this->scopedPaymentsQuery()->where('status', 'rejected')->count();
@@ -28,6 +30,7 @@ class PaymentController extends Controller
         return view('admin.payments.index', compact(
             'payments',
             'pendingCount',
+            'verifyingCount',
             'paidCount',
             'lateCount',
             'rejectedCount'
@@ -51,14 +54,26 @@ class PaymentController extends Controller
     {
         $this->assertPaymentOwnedByAuth($payment);
 
-        if ($payment->status !== 'pending') {
-            return back()->with('error', 'Only pending payments can be verified.');
+        if ($payment->status !== 'verifying') {
+            return back()->with('error', 'Only payments awaiting verification can be verified.');
         }
 
         $payment->update([
             'status' => 'paid',
             'verified_at' => now(),
         ]);
+
+        $payment->load('lease.tenant.user', 'lease.unit.property');
+
+        $lease = $payment->lease;
+        $tenantUser = $lease->tenant->user;
+
+        (new NotificationService)->send(
+            $tenantUser,
+            'payment_verified',
+            'Your payment of ₱'.number_format((float) $payment->amount_paid, 2).' for '.$payment->due_date->format('M d, Y').' has been verified. ✓',
+            route('tenant.payments.show', $payment->id)
+        );
 
         return back()->with('success', 'Payment verified successfully.');
     }
@@ -67,8 +82,8 @@ class PaymentController extends Controller
     {
         $this->assertPaymentOwnedByAuth($payment);
 
-        if ($payment->status !== 'pending') {
-            return back()->with('error', 'Only pending payments can be rejected.');
+        if ($payment->status !== 'verifying') {
+            return back()->with('error', 'Only payments awaiting verification can be rejected.');
         }
 
         $validated = $request->validate([
@@ -81,7 +96,19 @@ class PaymentController extends Controller
             'verified_at' => null,
         ]);
 
-        return back()->with('success', 'Payment rejected.');
+        $payment->load('lease.tenant.user', 'lease.unit.property');
+
+        $lease = $payment->lease;
+        $tenantUser = $lease->tenant->user;
+
+        (new NotificationService)->send(
+            $tenantUser,
+            'payment_rejected',
+            "Your payment proof was rejected. Reason: {$payment->remarks}",
+            route('tenant.payments.show', $payment->id)
+        );
+
+        return back()->with('success', 'Payment rejected. Tenant can resubmit.');
     }
 
     private function assertPaymentOwnedByAuth(Payment $payment): void

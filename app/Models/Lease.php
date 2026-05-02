@@ -20,6 +20,10 @@ class Lease extends Model
         'deposit_amount',
         'deposit_status',
         'status',
+        'notes',
+        'inclusions',
+        'contract_path',
+        'contract_uploaded_at',
     ];
 
     protected function casts(): array
@@ -27,6 +31,8 @@ class Lease extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
+            'inclusions' => 'array',
+            'contract_uploaded_at' => 'datetime',
         ];
     }
 

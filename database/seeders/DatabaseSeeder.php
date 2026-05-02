@@ -3,13 +3,12 @@
 namespace Database\Seeders;
 
 use App\Models\Lease;
-use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\LeasePaymentService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
@@ -37,31 +36,13 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        DB::table('notifications')->insert([
-            [
-                'user_id' => $owner1->id,
-                'type' => 'payment_submitted',
-                'data' => json_encode(['message' => 'Ana Reyes submitted proof of payment for Unit 101.']),
-                'read_at' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $owner1->id,
-                'type' => 'lease_expiring',
-                'data' => json_encode(['message' => 'Lease for Unit 101 is expiring on '.now()->addYear()->format('M d, Y').'.']),
-                'read_at' => null,
-                'created_at' => now()->subHours(3),
-                'updated_at' => now()->subHours(3),
-            ],
-        ]);
-
         $ana = User::updateOrCreate(
             ['email' => 'ana@tenant.com'],
             [
                 'name' => 'Ana Reyes',
                 'password' => Hash::make('password'),
                 'role' => 'tenant',
+                'must_change_password' => true,
             ]
         );
 
@@ -71,6 +52,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Pedro Santos',
                 'password' => Hash::make('password'),
                 'role' => 'tenant',
+                'must_change_password' => true,
             ]
         );
 
@@ -187,36 +169,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        Payment::updateOrCreate(
-            [
-                'lease_id' => $leaseAna->id,
-                'due_date' => now()->toDateString(),
-            ],
-            [
-                'amount_paid' => 6500,
-                'payment_date' => null,
-                'payment_method' => null,
-                'proof_of_payment' => null,
-                'verified_at' => null,
-                'status' => 'pending',
-                'remarks' => null,
-            ]
-        );
-
-        Payment::updateOrCreate(
-            [
-                'lease_id' => $leasePedro->id,
-                'due_date' => now()->toDateString(),
-            ],
-            [
-                'amount_paid' => 5500,
-                'payment_date' => null,
-                'payment_method' => null,
-                'proof_of_payment' => null,
-                'verified_at' => null,
-                'status' => 'pending',
-                'remarks' => null,
-            ]
-        );
+        (new LeasePaymentService)->generatePayments($leaseAna);
+        (new LeasePaymentService)->generatePayments($leasePedro);
     }
 }

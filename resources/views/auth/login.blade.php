@@ -271,8 +271,12 @@
             <div class="rt-circle-3" aria-hidden="true"></div>
 
             <div class="absolute left-8 top-8 z-10 flex items-center gap-2">
-                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-indigo-400" aria-hidden="true"></span>
-                <span class="text-xl font-bold text-white">RentTrack</span>
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
+                    </svg>
+                </div>
+                <span style="font-size:16px; font-weight:700; color:white;">RentTrack</span>
             </div>
 
             <div class="rt-main-copy z-10">
@@ -357,13 +361,13 @@
                     </div>
                 @endif
 
-                <div class="mb-6 flex items-center gap-2.5">
-                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-indigo-600" aria-hidden="true">
-                        <svg class="h-[18px] w-[18px] text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-white">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
                         </svg>
-                    </span>
-                    <span class="text-lg font-bold text-slate-800">RentTrack</span>
+                    </div>
+                    <span style="font-size:18px; font-weight:700; color:#0f172a;">RentTrack</span>
                 </div>
 
                 <div class="mb-6">

@@ -27,4 +27,9 @@ class Property extends Model
     {
         return $this->hasMany(Unit::class);
     }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(PropertyImage::class)->orderBy('order');
+    }
 }

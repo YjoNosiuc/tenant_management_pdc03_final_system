@@ -76,7 +76,6 @@ class TenantController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
             'phone_number' => ['required', 'string', 'max:50'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_number' => ['nullable', 'string', 'max:50'],
@@ -87,8 +86,9 @@ class TenantController extends Controller
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => $validated['password'],
+                'password' => 'password',
                 'role' => 'tenant',
+                'must_change_password' => true,
             ]);
 
             Tenant::create([

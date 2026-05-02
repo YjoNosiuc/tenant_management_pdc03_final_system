@@ -72,67 +72,60 @@
                 </div>
             @else
                 <ul class="space-y-3">
-                    @foreach($notifications as $n)
+                    @foreach($notifications as $notification)
                         @php
-                            $isUnread = $n->read_at === null;
-                            $payload = json_decode($n->data);
-                            $message = (is_object($payload) && isset($payload->message)) ? $payload->message : '';
-                            $typeKey = strtolower((string) $n->type);
-                            if (str_contains($typeKey, 'payment_confirmed')) {
-                                $iconBg = 'bg-emerald-100';
-                                $iconColor = 'text-emerald-600';
-                                $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />';
-                            } elseif (str_contains($typeKey, 'payment_rejected')) {
-                                $iconBg = 'bg-rose-100';
-                                $iconColor = 'text-rose-600';
-                                $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />';
-                            } elseif (str_contains($typeKey, 'rent_due')) {
-                                $iconBg = 'bg-amber-100';
-                                $iconColor = 'text-amber-600';
-                                $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M14.8569 17.0817C16.7514 16.857 18.5783 16.4116 20.3111 15.7719C18.8743 14.177 17.9998 12.0656 17.9998 9.75V9.04919C17.9999 9.03281 18 9.01641 18 9C18 5.68629 15.3137 3 12 3C8.68629 3 6 5.68629 6 9L5.9998 9.75C5.9998 12.0656 5.12527 14.177 3.68848 15.7719C5.4214 16.4116 7.24843 16.857 9.14314 17.0818M14.8569 17.0817C13.92 17.1928 12.9666 17.25 11.9998 17.25C11.0332 17.25 10.0799 17.1929 9.14314 17.0818M14.8569 17.0817C14.9498 17.3711 15 17.6797 15 18C15 19.6569 13.6569 21 12 21C10.3431 21 9 19.6569 9 18C9 17.6797 9.05019 17.3712 9.14314 17.0818" />';
-                            } elseif (str_contains($typeKey, 'lease_expiring')) {
-                                $iconBg = 'bg-amber-100';
-                                $iconColor = 'text-amber-600';
-                                $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5" />';
-                            } else {
-                                $iconBg = $isUnread ? 'bg-indigo-100' : 'bg-slate-100';
-                                $iconColor = $isUnread ? 'text-indigo-600' : 'text-slate-400';
-                                $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M14.8569 17.0817C16.7514 16.857 18.5783 16.4116 20.3111 15.7719C18.8743 14.177 17.9998 12.0656 17.9998 9.75V9.04919C17.9999 9.03281 18 9.01641 18 9C18 5.68629 15.3137 3 12 3C8.68629 3 6 5.68629 6 9L5.9998 9.75C5.9998 12.0656 5.12527 14.177 3.68848 15.7719C5.4214 16.4116 7.24843 16.857 9.14314 17.0818M14.8569 17.0817C13.92 17.1928 12.9666 17.25 11.9998 17.25C11.0332 17.25 10.0799 17.1929 9.14314 17.0818M14.8569 17.0817C14.9498 17.3711 15 17.6797 15 18C15 19.6569 13.6569 21 12 21C10.3431 21 9 19.6569 9 18C9 17.6797 9.05019 17.3712 9.14314 17.0818" />';
-                            }
-                            $title = ucwords(str_replace('_', ' ', class_basename($n->type)));
-                            $when = \Illuminate\Support\Carbon::parse($n->created_at)->diffForHumans();
+                        $iconConfig = match($notification->type) {
+                            'payment_submitted' => ['bg-indigo-100 text-indigo-600', 'banknote'],
+                            'payment_verified'  => ['bg-emerald-100 text-emerald-600', 'check-circle'],
+                            'payment_rejected'  => ['bg-rose-100 text-rose-600', 'x-circle'],
+                            'lease_expiring'    => ['bg-amber-100 text-amber-600', 'calendar'],
+                            default             => ['bg-slate-100 text-slate-500', 'bell'],
+                        };
+                        $data = json_decode($notification->data, true);
                         @endphp
                         <li>
-                            <div
-                                class="flex items-stretch gap-3 rounded-xl p-4 transition-all duration-200 {{ $isUnread ? 'border-l-4 border-indigo-400 bg-indigo-50/40' : 'border-l-4 border-transparent bg-white hover:bg-slate-50/80' }}"
-                            >
-                                <div class="shrink-0 pt-0.5">
-                                    <span class="flex h-11 w-11 items-center justify-center rounded-full ring-1 {{ $isUnread ? 'ring-indigo-100 ' : 'ring-slate-100 ' }}{{ $iconBg }} {{ $iconColor }}">
-                                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">{!! $iconSvg !!}</svg>
-                                    </span>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-start gap-2">
-                                        <p class="{{ $isUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-500' }}">{{ $title }}</p>
-                                        @if($isUnread)
-                                            <span class="mt-1.5 h-2 w-2 shrink-0 animate-pulse rounded-full bg-indigo-500" aria-hidden="true"></span>
+                            <a href="{{ route('tenant.notifications.redirect', $notification->id) }}"
+                               class="block cursor-pointer rounded-xl transition-all duration-200 hover:shadow-md
+                                      {{ is_null($notification->read_at)
+                                         ? 'bg-indigo-50/40 border-l-4 border-indigo-400'
+                                         : 'bg-white hover:bg-slate-50/80 border-l-4 border-transparent' }}">
+                                <div class="flex items-start gap-4 p-4">
+                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $iconConfig[0] }}">
+                                        @if($iconConfig[1] === 'banknote')
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                                            </svg>
+                                        @elseif($iconConfig[1] === 'check-circle')
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                        @elseif($iconConfig[1] === 'x-circle')
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                        @elseif($iconConfig[1] === 'calendar')
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                            </svg>
+                                        @else
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                            </svg>
                                         @endif
                                     </div>
-                                    @if($message !== '')
-                                        <p class="mt-1 text-sm {{ $isUnread ? 'text-slate-600' : 'text-slate-500' }}">{{ $message }}</p>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm {{ is_null($notification->read_at) ? 'font-semibold text-slate-900' : 'font-medium text-slate-500' }}">
+                                            {{ $data['message'] ?? $data['body'] ?? $data['title'] ?? '' }}
+                                        </p>
+                                        <p class="mt-1 text-xs text-slate-400">
+                                            {{ \Carbon\Carbon::parse($notification->created_at)->diffForHumans() }}
+                                        </p>
+                                    </div>
+                                    @if(is_null($notification->read_at))
+                                        <div class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500 animate-pulse" aria-hidden="true"></div>
                                     @endif
-                                    <p class="mt-2 text-xs {{ $isUnread ? 'text-slate-400' : 'text-slate-300' }}">{{ $when }}</p>
                                 </div>
-                                @if($isUnread)
-                                    <form method="POST" action="{{ route('tenant.notifications.markAsRead', $n->id) }}" class="ml-auto shrink-0 self-start">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" class="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-slate-300 transition-all duration-150 hover:bg-indigo-50 hover:text-indigo-500" title="Mark as read" aria-label="Mark as read">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                                        </button>
-                                    </form>
-                                @endif
-                            </div>
+                            </a>
                         </li>
                     @endforeach
                 </ul>

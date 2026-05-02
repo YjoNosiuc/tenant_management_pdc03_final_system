@@ -72,13 +72,15 @@ class PaymentTest extends TestCase
             ]);
 
         $response->assertRedirect(route('tenant.payments.show', $payment));
+        $response->assertSessionHas('success', 'Proof submitted successfully. Awaiting landlord verification.');
 
         $payment->refresh();
         $this->assertNotNull($payment->proof_of_payment);
+        $this->assertSame('verifying', $payment->status);
         Storage::disk('public')->assertExists($payment->proof_of_payment);
     }
 
-    public function test_submitting_proof_sets_status_to_pending_and_payment_date_to_today(): void
+    public function test_submitting_proof_sets_status_to_verifying_and_payment_date_to_today(): void
     {
         Storage::fake('public');
 
@@ -97,8 +99,91 @@ class PaymentTest extends TestCase
             ]);
 
         $payment->refresh();
-        $this->assertSame('pending', $payment->status);
+        $this->assertSame('verifying', $payment->status);
         $this->assertSame(now()->toDateString(), $payment->payment_date?->toDateString());
+    }
+
+    public function test_tenant_cannot_submit_proof_for_non_earliest_unpaid_payment(): void
+    {
+        Storage::fake('public');
+
+        $tenantUser = $this->createTenantUser();
+        $property = $this->createProperty();
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+
+        $this->createPayment($lease->id, 'pending', [
+            'due_date' => now()->subMonth()->toDateString(),
+        ]);
+        $laterPayment = $this->createPayment($lease->id, 'pending', [
+            'due_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($tenantUser)
+            ->from(route('tenant.payments.show', $laterPayment))
+            ->post(route('tenant.payments.submitProof', $laterPayment), [
+                'proof' => UploadedFile::fake()->image('proof.jpg'),
+            ]);
+
+        $response->assertRedirect(route('tenant.payments.show', $laterPayment));
+        $response->assertSessionHas('error', 'You must pay in order. Please submit proof for the earliest pending payment first.');
+
+        $laterPayment->refresh();
+        $this->assertSame('pending', $laterPayment->status);
+        $this->assertNull($laterPayment->proof_of_payment);
+    }
+
+    public function test_tenant_can_resubmit_proof_when_status_is_verifying(): void
+    {
+        Storage::fake('public');
+
+        $tenantUser = $this->createTenantUser();
+        $property = $this->createProperty();
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+        $payment = $this->createPayment($lease->id, 'verifying', [
+            'proof_of_payment' => 'payments/proofs/old.jpg',
+            'payment_date' => now()->toDateString(),
+        ]);
+        Storage::disk('public')->put($payment->proof_of_payment, 'fake');
+
+        $this->actingAs($tenantUser)
+            ->from(route('tenant.payments.show', $payment))
+            ->post(route('tenant.payments.submitProof', $payment), [
+                'proof' => UploadedFile::fake()->image('new-proof.jpg'),
+            ]);
+
+        $payment->refresh();
+        $this->assertSame('verifying', $payment->status);
+        $this->assertStringContainsString('payments/proofs/', $payment->proof_of_payment);
+        Storage::disk('public')->assertExists($payment->proof_of_payment);
+        Storage::disk('public')->assertMissing('payments/proofs/old.jpg');
+    }
+
+    public function test_tenant_can_resubmit_proof_when_status_is_rejected(): void
+    {
+        Storage::fake('public');
+
+        $tenantUser = $this->createTenantUser();
+        $property = $this->createProperty();
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+        $payment = $this->createPayment($lease->id, 'rejected', [
+            'proof_of_payment' => 'payments/proofs/rejected.jpg',
+            'payment_date' => now()->subDay()->toDateString(),
+            'remarks' => 'Unclear image',
+        ]);
+        Storage::disk('public')->put($payment->proof_of_payment, 'fake');
+
+        $this->actingAs($tenantUser)
+            ->from(route('tenant.payments.show', $payment))
+            ->post(route('tenant.payments.submitProof', $payment), [
+                'proof' => UploadedFile::fake()->image('retry.jpg'),
+            ]);
+
+        $payment->refresh();
+        $this->assertSame('verifying', $payment->status);
+        Storage::disk('public')->assertExists($payment->proof_of_payment);
     }
 
     public function test_tenant_cannot_submit_proof_without_a_file(): void

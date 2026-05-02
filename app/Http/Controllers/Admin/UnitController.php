@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Unit;
+use App\Models\UnitImage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class UnitController extends Controller
@@ -47,6 +50,84 @@ class UnitController extends Controller
             'avgRent' => $avgRent,
             'unreadNotificationCount' => $this->unreadNotificationCount(),
         ]);
+    }
+
+    public function show(Unit $unit): View
+    {
+        $unit = Unit::query()
+            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
+            ->whereKey($unit->getKey())
+            ->with([
+                'images',
+                'property',
+                'leases' => fn ($q) => $q->with('tenant.user')->orderByDesc('start_date'),
+            ])
+            ->firstOrFail();
+
+        $recentPayments = Payment::query()
+            ->whereHas('lease', fn ($q) => $q->where('unit_id', $unit->id))
+            ->with(['lease.tenant.user'])
+            ->orderByDesc('due_date')
+            ->limit(5)
+            ->get();
+
+        $activeLease = $unit->leases->firstWhere('status', 'active');
+
+        return view('admin.units.show', [
+            'title' => 'Unit '.$unit->unit_number,
+            'unit' => $unit,
+            'recentPayments' => $recentPayments,
+            'activeLease' => $activeLease,
+            'unreadNotificationCount' => $this->unreadNotificationCount(),
+        ]);
+    }
+
+    public function uploadImages(Request $request, Unit $unit): RedirectResponse
+    {
+        $unit = Unit::query()
+            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
+            ->whereKey($unit->getKey())
+            ->firstOrFail();
+
+        $request->validate([
+            'images' => ['required', 'array', 'max:5'],
+            'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        $currentCount = $unit->images()->count();
+        $newCount = count($request->file('images', []));
+
+        if ($currentCount + $newCount > 5) {
+            return back()->with('error', "You can only upload up to 5 images. You currently have {$currentCount} image(s).");
+        }
+
+        foreach ($request->file('images') as $index => $image) {
+            $path = Storage::disk('public')->putFile('units', $image);
+            UnitImage::create([
+                'unit_id' => $unit->id,
+                'image_path' => $path,
+                'order' => $currentCount + $index,
+            ]);
+        }
+
+        return back()->with('success', 'Images uploaded successfully.');
+    }
+
+    public function deleteImage(Unit $unit, UnitImage $image): RedirectResponse
+    {
+        $unit = Unit::query()
+            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
+            ->whereKey($unit->getKey())
+            ->firstOrFail();
+
+        if ((int) $image->unit_id !== (int) $unit->id) {
+            abort(404);
+        }
+
+        Storage::disk('public')->delete($image->image_path);
+        $image->delete();
+
+        return back()->with('success', 'Image deleted.');
     }
 
     public function store(Request $request): RedirectResponse

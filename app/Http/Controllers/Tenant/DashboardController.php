@@ -15,12 +15,16 @@ class DashboardController extends Controller
 
         $lease = $tenant?->leases()
             ->where('status', 'active')
-            ->with('unit.property')
+            ->with(['unit.images', 'unit.property.images'])
             ->orderByDesc('start_date')
             ->first();
 
+        $unitImages = $lease?->unit?->images ?? collect();
+        $propertyImages = $lease?->unit?->property?->images ?? collect();
+        $allImages = $unitImages->merge($propertyImages);
+
         $nextPayment = $lease?->payments()
-            ->whereIn('status', ['pending', 'late'])
+            ->whereNotIn('status', ['paid'])
             ->orderBy('due_date')
             ->first();
 
@@ -29,12 +33,20 @@ class DashboardController extends Controller
             ->take(5)
             ->get() ?? collect();
 
+        $contractPath = $lease?->contract_path;
+        $contractUploadedAt = $lease?->contract_uploaded_at;
+
         return view('tenant.dashboard', [
             'title' => 'My Dashboard',
             'tenant' => $tenant,
             'lease' => $lease,
+            'contractPath' => $contractPath,
+            'contractUploadedAt' => $contractUploadedAt,
             'nextPayment' => $nextPayment,
             'recentPayments' => $recentPayments,
+            'unitImages' => $unitImages,
+            'propertyImages' => $propertyImages,
+            'allImages' => $allImages,
             'unreadNotificationCount' => $this->unreadNotificationCount(),
         ]);
     }

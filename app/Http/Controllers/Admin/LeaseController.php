@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Lease;
 use App\Models\Tenant;
 use App\Models\Unit;
+use App\Services\LeasePaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -92,6 +95,7 @@ class LeaseController extends Controller
 
         DB::transaction(function () use ($validated) {
             $lease = Lease::create($validated);
+            (new LeasePaymentService)->generatePayments($lease);
             $this->syncUnitForLease($lease);
         });
 
@@ -122,6 +126,7 @@ class LeaseController extends Controller
         DB::transaction(function () use ($lease, $validated, $previousUnitId, $previousStatus) {
             $lease->update($validated);
             $lease->refresh();
+            (new LeasePaymentService)->generatePayments($lease);
             $this->syncUnitAfterLeaseUpdate($lease, $previousUnitId, $previousStatus);
         });
 
@@ -141,6 +146,36 @@ class LeaseController extends Controller
         return back()->with('success', 'Lease deleted successfully.');
     }
 
+    public function uploadContract(Request $request, Lease $lease): RedirectResponse
+    {
+        $lease = $this->ownedLeaseOrAbort($lease);
+
+        $request->validate([
+            'contract' => [
+                'required',
+                'file',
+                'mimes:pdf,jpg,jpeg,png,webp,doc,docx',
+                'max:10240',
+            ],
+        ]);
+
+        if ($lease->contract_path) {
+            Storage::disk('public')->delete($lease->contract_path);
+        }
+
+        $path = Storage::disk('public')->putFile(
+            'contracts',
+            $request->file('contract')
+        );
+
+        $lease->update([
+            'contract_path' => $path,
+            'contract_uploaded_at' => now(),
+        ]);
+
+        return back()->with('success', 'Contract uploaded successfully.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -149,6 +184,16 @@ class LeaseController extends Controller
         if ($request->input('deposit_amount') === '') {
             $request->merge(['deposit_amount' => null]);
         }
+
+        if ($request->routeIs('admin.leases.store')) {
+            $request->mergeIfMissing(['inclusions' => []]);
+        }
+
+        if ($request->routeIs('admin.leases.update') && $request->input('_form') === 'edit') {
+            $request->mergeIfMissing(['inclusions' => []]);
+        }
+
+        $inclusionChoices = ['Water', 'Electricity', 'Internet/WiFi', 'Parking', 'Cable TV', 'Trash Collection'];
 
         $validated = $request->validate([
             'tenant_id' => ['required', 'exists:tenants,id'],
@@ -159,7 +204,22 @@ class LeaseController extends Controller
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
             'deposit_status' => ['required', 'in:held,returned,forfeited'],
             'status' => ['required', 'in:active,completed,terminated'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'inclusions' => ['sometimes', 'nullable', 'array'],
+            'inclusions.*' => ['string', Rule::in($inclusionChoices)],
         ]);
+
+        if ($request->routeIs('admin.leases.store')) {
+            $validated['inclusions'] = array_values($validated['inclusions'] ?? []);
+        }
+
+        if ($request->routeIs('admin.leases.update')) {
+            if ($request->input('_form') === 'edit') {
+                $validated['inclusions'] = array_values($validated['inclusions'] ?? []);
+            } elseif (array_key_exists('inclusions', $validated)) {
+                $validated['inclusions'] = array_values($validated['inclusions'] ?? []);
+            }
+        }
 
         return $validated;
     }

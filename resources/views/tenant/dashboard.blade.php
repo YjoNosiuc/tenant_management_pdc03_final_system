@@ -2,22 +2,23 @@
 
 @section('title', 'My Dashboard')
 
+@push('head')
+    <style>
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+@endpush
+
 @section('content')
     @php
-        $paymentDot = fn (string $status) => match ($status) {
-            'paid' => 'bg-emerald-500',
-            'pending' => 'bg-amber-500',
-            'late' => 'bg-rose-500',
-            'rejected' => 'bg-rose-500',
-            default => 'bg-slate-400',
-        };
-        $paymentShell = fn (string $status) => match ($status) {
-            'paid' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
-            'pending' => 'bg-amber-50 text-amber-800 ring-amber-100',
-            'late' => 'bg-rose-50 text-rose-800 ring-rose-100',
-            'rejected' => 'bg-rose-50 text-rose-800 ring-rose-100',
-            default => 'bg-slate-50 text-slate-700 ring-slate-100',
-        };
+        $statusConfig = [
+            'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
+            'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+            'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
+            'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
+            'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],
+        ];
+        $paymentCfg = fn (string $status) => $statusConfig[$status] ?? $statusConfig['pending'];
 
         $leaseDot = fn (?string $status) => match ($status) {
             'active' => 'bg-emerald-500',
@@ -37,6 +38,7 @@
         class="mx-auto max-w-7xl space-y-8"
         x-data="{
             uploadOpen: false,
+            uploadPaymentId: null,
             fileName: '',
             previewUrl: null,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
@@ -69,7 +71,8 @@
             @if(session()->has('success') || session()->has('error'))
                 setTimeout(() => { flashVisible = false }, 4000);
             @endif
-            @if($errors->has('proof') && $nextPayment && in_array($nextPayment->status, ['pending', 'late'], true))
+            @if($errors->has('proof') && $nextPayment && in_array($nextPayment->status, ['pending', 'late', 'verifying', 'rejected'], true))
+                uploadPaymentId = {{ (int) $nextPayment->id }};
                 uploadOpen = true;
             @endif
         "
@@ -130,6 +133,77 @@
             @endif
         </div>
 
+        @if($lease && $allImages->count() > 0)
+            @php
+                $galleryUrls = $allImages->map(fn ($i) => \Illuminate\Support\Facades\Storage::url($i->image_path))->values()->all();
+            @endphp
+            <div class="rounded-3xl bg-white ring-1 ring-slate-100 shadow-sm overflow-hidden mb-6"
+                 x-data="{
+                     lightboxOpen: false,
+                     currentIndex: 0,
+                     images: @js($galleryUrls),
+                     openLightbox(index) { this.currentIndex = index; this.lightboxOpen = true; },
+                     prev() { this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.images.length - 1; },
+                     next() { this.currentIndex = this.currentIndex < this.images.length - 1 ? this.currentIndex + 1 : 0; }
+                 }">
+                <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-900">My Unit</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Unit {{ $lease->unit->unit_number }} · {{ $lease->unit->property->name }}
+                        </p>
+                    </div>
+                    <span class="text-xs text-slate-400">{{ $allImages->count() }} photo(s)</span>
+                </div>
+
+                <div class="flex gap-3 px-6 pb-6 overflow-x-auto scrollbar-hide">
+                    @foreach($allImages as $index => $image)
+                        <div class="group relative shrink-0 w-48 h-36 rounded-2xl overflow-hidden bg-slate-100 cursor-pointer"
+                             @click="openLightbox({{ $index }})">
+                            <img src="{{ \Illuminate\Support\Facades\Storage::url($image->image_path) }}"
+                                 class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                 alt="Unit photo" />
+                            <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div x-show="lightboxOpen" x-cloak
+                     class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center"
+                     @keydown.escape.window="lightboxOpen = false"
+                     @click.self="lightboxOpen = false">
+
+                    <button type="button" @click="prev()"
+                        class="absolute left-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"
+                        aria-label="Previous">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                    </button>
+
+                    <img :src="images[currentIndex]"
+                         class="max-h-[80vh] max-w-4xl w-full object-contain rounded-xl px-16"
+                         alt="" />
+
+                    <button type="button" @click="next()"
+                        class="absolute right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"
+                        aria-label="Next">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                    </button>
+
+                    <button type="button" @click="lightboxOpen = false"
+                        class="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all"
+                        aria-label="Close">
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    </button>
+
+                    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-white text-sm font-medium bg-black/40 rounded-full px-3 py-1">
+                        <span x-text="currentIndex + 1"></span> / {{ $allImages->count() }}
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             {{-- Current lease --}}
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
@@ -172,6 +246,92 @@
                             <span class="text-slate-300">→</span>
                             <span>{{ $lease->end_date?->format('M d, Y') }}</span>
                         </div>
+
+                        @if($lease->inclusions && count($lease->inclusions) > 0)
+                        <div class="mt-4 border-t border-slate-100 pt-4">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                What's Included
+                            </p>
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach($lease->inclusions as $inclusion)
+                                    <span class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                        </svg>
+                                        {{ $inclusion }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+
+                        @if($lease->notes)
+                        <div class="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
+                            <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-600 mb-1">
+                                Special Agreement
+                            </p>
+                            <p class="text-xs text-amber-800 leading-relaxed">{{ $lease->notes }}</p>
+                        </div>
+                        @endif
+
+                        @if(!empty($contractPath))
+                        <div class="mt-4 border-t border-slate-100 pt-4">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                                Lease Contract
+                            </p>
+
+                            @php
+                                $ext = pathinfo($contractPath, PATHINFO_EXTENSION);
+                                $isImg = in_array(strtolower((string) $ext), ['jpg', 'jpeg', 'png', 'webp'], true);
+                            @endphp
+
+                            @if($isImg)
+                                <div class="mb-3 overflow-hidden rounded-xl ring-1 ring-slate-200">
+                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($contractPath) }}"
+                                         class="w-full object-cover max-h-40 rounded-xl"
+                                         alt="Lease contract" />
+                                </div>
+                            @else
+                                <div class="mb-3 flex items-center gap-3 rounded-xl bg-red-50 border border-red-100 p-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0 text-red-600" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                    </svg>
+                                    <div>
+                                        <p class="text-xs font-semibold text-red-800">Contract Document</p>
+                                        <p class="text-xs text-red-600">{{ strtoupper((string) $ext) }} file</p>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="flex gap-2">
+                                <a href="{{ \Illuminate\Support\Facades\Storage::url($contractPath) }}"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    </svg>
+                                    View
+                                </a>
+                                <a href="{{ \Illuminate\Support\Facades\Storage::url($contractPath) }}"
+                                   download
+                                   class="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    Download
+                                </a>
+                            </div>
+
+                            <p class="mt-2 text-xs text-slate-400 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 shrink-0" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                                Uploaded {{ $contractUploadedAt?->format('M d, Y') }}
+                            </p>
+                        </div>
+                        @endif
 
                         @if($lease->end_date)
                             @php $daysLeft = (int) now()->startOfDay()->diffInDays($lease->end_date->copy()->startOfDay(), false); @endphp
@@ -240,18 +400,70 @@
 
                         <p class="text-4xl font-extrabold tracking-tight text-slate-900">₱{{ number_format((float) $nextPayment->amount_paid, 2) }}</p>
 
-                        <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $paymentShell($nextPayment->status) }}">
-                            <span class="h-1.5 w-1.5 rounded-full {{ $paymentDot($nextPayment->status) }}"></span>
-                            {{ ucfirst($nextPayment->status) }}
+                        @php $npc = $paymentCfg($nextPayment->status); @endphp
+                        <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold {{ $npc[0] }}">
+                            <span class="h-1.5 w-1.5 rounded-full {{ $npc[1] }}"></span>
+                            {{ $npc[2] }}
                         </span>
 
                         <div class="border-t border-slate-100 pt-4"></div>
 
-                        @if(in_array($nextPayment->status, ['pending', 'late'], true))
+                        @if($nextPayment->status === 'pending')
                             <button
                                 type="button"
-                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
-                                @click="uploadOpen = true; resetPreview()"
+                                class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+                                @click="uploadPaymentId = {{ $nextPayment->id }}; uploadOpen = true; resetPreview()"
+                            >
+                                <svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                                @if($nextPayment->due_date->copy()->startOfDay()->gt(now()->startOfDay()))
+                                    Pay Early
+                                @else
+                                    Upload Proof of Payment
+                                @endif
+                            </button>
+                        @elseif($nextPayment->status === 'verifying')
+                            <div class="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                                <div class="mb-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-indigo-600" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                    <p class="text-sm font-semibold text-indigo-800">Under Review</p>
+                                </div>
+                                <p class="text-xs text-indigo-600">Your proof is being reviewed by your landlord.</p>
+                            </div>
+                            <button
+                                type="button"
+                                class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-600 transition-all duration-150 hover:bg-indigo-50 active:scale-[0.98]"
+                                @click="uploadPaymentId = {{ $nextPayment->id }}; uploadOpen = true; resetPreview()"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                Resubmit Proof
+                            </button>
+                        @elseif($nextPayment->status === 'rejected')
+                            <div class="mt-4 rounded-xl border border-red-100 bg-red-50 p-4">
+                                <div class="mb-1 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-red-600" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                    <p class="text-sm font-semibold text-red-800">Proof Rejected</p>
+                                </div>
+                                @if($nextPayment->remarks)
+                                    <p class="text-xs text-red-600">{{ $nextPayment->remarks }}</p>
+                                @endif
+                            </div>
+                            <button
+                                type="button"
+                                class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition-all duration-150 hover:bg-red-50 active:scale-[0.98]"
+                                @click="uploadPaymentId = {{ $nextPayment->id }}; uploadOpen = true; resetPreview()"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                                Resubmit Proof
+                            </button>
+                        @elseif($nextPayment->status === 'late')
+                            <div class="mt-4 flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 p-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                                <p class="text-xs font-medium text-rose-700">This payment is overdue.</p>
+                            </div>
+                            <button
+                                type="button"
+                                class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition-all duration-150 hover:bg-rose-500 active:scale-[0.98]"
+                                @click="uploadPaymentId = {{ $nextPayment->id }}; uploadOpen = true; resetPreview()"
                             >
                                 <svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                                 Upload Proof of Payment
@@ -303,9 +515,10 @@
                                     </td>
                                     <td class="px-4 py-3 font-bold text-indigo-700">₱{{ number_format((float) $row->amount_paid, 2) }}</td>
                                     <td class="px-4 py-3">
-                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $paymentShell($row->status) }}">
-                                            <span class="h-1.5 w-1.5 rounded-full {{ $paymentDot($row->status) }}"></span>
-                                            {{ ucfirst($row->status) }}
+                                        @php $rc = $paymentCfg($row->status); @endphp
+                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold {{ $rc[0] }}">
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $rc[1] }}"></span>
+                                            {{ $rc[2] }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-3">
@@ -329,7 +542,7 @@
         </div>
 
         {{-- Upload proof modal --}}
-        @if($nextPayment && in_array($nextPayment->status, ['pending', 'late'], true))
+        @if($nextPayment && in_array($nextPayment->status, ['pending', 'late', 'verifying', 'rejected'], true))
             <div
                 x-show="uploadOpen"
                 x-cloak
@@ -358,9 +571,9 @@
 
                     <form
                         method="POST"
-                        action="{{ route('tenant.payments.submitProof', $nextPayment) }}"
                         enctype="multipart/form-data"
                         class="px-6 py-5"
+                        x-bind:action="'{{ url('/tenant/payments') }}/' + uploadPaymentId + '/proof'"
                     >
                         @csrf
                         <div class="mb-4 flex items-start gap-3 rounded-xl bg-indigo-50 p-4">

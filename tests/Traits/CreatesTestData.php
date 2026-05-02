@@ -44,6 +44,7 @@ trait CreatesTestData
             'email' => 'tenant.'.Str::lower(Str::random(12)).'@renter.test',
             'password' => 'password',
             'role' => 'tenant',
+            'must_change_password' => false,
         ], $userAttributes));
 
         Tenant::create(array_merge([

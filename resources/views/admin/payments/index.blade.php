@@ -10,6 +10,13 @@
             'bank_transfer' => 'Bank transfer',
             'maya' => 'Maya',
         ];
+        $statusConfig = [
+            'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
+            'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+            'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
+            'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
+            'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],
+        ];
     @endphp
 
     <div
@@ -18,18 +25,29 @@
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
             search: '',
             filterStatus: '',
+            rejectOpen: false,
+            rejectPaymentId: null,
             rowMatches(tenantName, status) {
                 if (this.filterStatus && status !== this.filterStatus) return false;
                 const s = this.search.trim().toLowerCase();
                 if (!s) return true;
                 return (tenantName || '').toLowerCase().includes(s);
+            },
+            openReject(id) {
+                this.rejectPaymentId = id;
+                this.rejectOpen = true;
             }
         }"
         x-init="
             @if(session()->has('success') || session()->has('error'))
                 setTimeout(() => { flashVisible = false }, 3000);
             @endif
+            @if($errors->has('remarks') && old('reject_payment_id'))
+                rejectPaymentId = {{ (int) old('reject_payment_id') }};
+                rejectOpen = true;
+            @endif
         "
+        @keydown.escape.window="rejectOpen = false"
     >
         <div x-show="flashVisible" x-cloak class="space-y-3">
             @if(session('success'))
@@ -60,17 +78,30 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
             <div class="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
                 <div class="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-amber-500 opacity-10"></div>
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-sm font-medium text-slate-500">Pending</p>
                         <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($pendingCount) }}</p>
-                        <p class="mt-1 text-xs text-slate-400">Awaiting verification</p>
+                        <p class="mt-1 text-xs text-slate-400">No proof yet</p>
                     </div>
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50">
                         <svg class="h-6 w-6 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+                <div class="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-indigo-500 opacity-10"></div>
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Verifying</p>
+                        <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($verifyingCount) }}</p>
+                        <p class="mt-1 text-xs text-slate-400">Proof submitted</p>
+                    </div>
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50">
+                        <svg class="h-6 w-6 animate-pulse text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                     </div>
                 </div>
             </div>
@@ -131,6 +162,7 @@
                         >
                             <option value="">All statuses</option>
                             <option value="pending">Pending</option>
+                            <option value="verifying">Verifying</option>
                             <option value="paid">Paid</option>
                             <option value="late">Late</option>
                             <option value="rejected">Rejected</option>
@@ -186,32 +218,10 @@
                                         $property = $unit?->property;
                                         $methodLabel = $row->payment_method ? ($paymentMethodLabels[$row->payment_method] ?? ucfirst(str_replace('_', ' ', $row->payment_method))) : null;
                                         $status = $row->status;
-                                        if ($status === 'paid' && $row->verified_at) {
-                                            $dotClass = 'bg-blue-500';
-                                            $badgeShell = 'bg-blue-50 text-blue-700 ring-blue-100';
-                                            $badgeLabel = 'Verified';
-                                        } elseif ($status === 'paid') {
-                                            $dotClass = 'bg-emerald-500';
-                                            $badgeShell = 'bg-emerald-50 text-emerald-700 ring-emerald-100';
-                                            $badgeLabel = 'Paid';
-                                        } else {
-                                            $dotClass = match ($status) {
-                                                'pending' => 'bg-amber-500',
-                                                'late', 'rejected' => 'bg-rose-500',
-                                                default => 'bg-slate-400',
-                                            };
-                                            $badgeShell = match ($status) {
-                                                'pending' => 'bg-amber-50 text-amber-700 ring-amber-100',
-                                                'late', 'rejected' => 'bg-rose-50 text-rose-700 ring-rose-100',
-                                                default => 'bg-slate-50 text-slate-700 ring-slate-100',
-                                            };
-                                            $badgeLabel = match ($status) {
-                                                'pending' => 'Pending',
-                                                'late' => 'Late',
-                                                'rejected' => 'Rejected',
-                                                default => ucfirst((string) $status),
-                                            };
-                                        }
+                                        $cfg = $statusConfig[$status] ?? $statusConfig['pending'];
+                                        $dotClass = $cfg[1];
+                                        $badgeShell = $cfg[0];
+                                        $badgeLabel = $cfg[2];
                                         $isOverdue = $row->due_date
                                             && $row->due_date->lt(now()->startOfDay())
                                             && $status !== 'paid';
@@ -262,20 +272,34 @@
                                             </div>
                                         </td>
                                         <td class="px-4 py-3.5 align-top">
-                                            <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $badgeShell }}">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold {{ $badgeShell }}">
                                                 <span class="h-1.5 w-1.5 rounded-full {{ $dotClass }}"></span>
                                                 {{ $badgeLabel }}
                                             </span>
                                         </td>
                                         <td class="px-4 py-3.5 align-top text-right">
-                                            <a
-                                                href="{{ route('admin.payments.show', $row) }}"
-                                                class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
-                                                title="View"
-                                                aria-label="View"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                                            </a>
+                                            <div class="inline-flex items-center justify-end gap-1">
+                                                @if($status === 'verifying')
+                                                    <form method="POST" action="{{ route('admin.payments.verify', $row) }}" class="inline">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-all duration-150" title="Verify" aria-label="Verify">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                                        </button>
+                                                    </form>
+                                                    <button type="button" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-rose-600 hover:bg-rose-50 transition-all duration-150" title="Reject" aria-label="Reject" @click="openReject({{ $row->id }})">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                                    </button>
+                                                @endif
+                                                <a
+                                                    href="{{ route('admin.payments.show', $row) }}"
+                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
+                                                    title="View"
+                                                    aria-label="View"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -288,6 +312,37 @@
                     {{ $payments->links() }}
                 </div>
             @endif
+        </div>
+
+        <div
+            x-show="rejectOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-index-modal-title"
+            @click.self="rejectOpen = false"
+        >
+            <div class="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-slate-100" @click.stop>
+                <h3 id="reject-index-modal-title" class="text-center text-xl font-bold text-slate-900">Reject this payment?</h3>
+                <p class="mt-2 text-center text-sm text-slate-500">The tenant can resubmit proof after rejection.</p>
+                <form method="POST" x-bind:action="'{{ url('/admin/payments') }}/' + rejectPaymentId + '/reject'" class="mt-6 space-y-4">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="reject_payment_id" :value="rejectPaymentId" />
+                    <div>
+                        <label for="reject-index-remarks" class="mb-2 block text-sm font-semibold text-slate-700">Reason <span class="text-rose-500">*</span></label>
+                        <textarea id="reject-index-remarks" name="remarks" rows="3" required placeholder="Reason for rejection…" class="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-rose-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-400/20">{{ old('remarks') }}</textarea>
+                        @error('remarks')
+                            <p class="mt-1.5 text-xs font-medium text-rose-500">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <button type="button" class="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="rejectOpen = false">Cancel</button>
+                        <button type="submit" class="w-full rounded-xl bg-rose-600 py-3 text-sm font-semibold text-white hover:bg-rose-500">Confirm Reject</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 @endsection

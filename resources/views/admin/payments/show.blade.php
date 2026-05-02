@@ -9,32 +9,17 @@
         $unit = $payment->lease?->unit;
         $property = $unit?->property;
         $status = $payment->status;
-        if ($status === 'paid' && $payment->verified_at) {
-            $badgeDot = 'bg-blue-500';
-            $badgeShell = 'bg-blue-50 text-blue-800 ring-blue-100';
-            $badgeLabel = 'Verified';
-        } elseif ($status === 'paid') {
-            $badgeDot = 'bg-emerald-500';
-            $badgeShell = 'bg-emerald-50 text-emerald-800 ring-emerald-100';
-            $badgeLabel = 'Paid';
-        } else {
-            $badgeDot = match ($status) {
-                'pending' => 'bg-amber-500',
-                'late', 'rejected' => 'bg-rose-500',
-                default => 'bg-slate-400',
-            };
-            $badgeShell = match ($status) {
-                'pending' => 'bg-amber-50 text-amber-800 ring-amber-100',
-                'late', 'rejected' => 'bg-rose-50 text-rose-800 ring-rose-100',
-                default => 'bg-slate-50 text-slate-700 ring-slate-100',
-            };
-            $badgeLabel = match ($status) {
-                'pending' => 'Pending',
-                'late' => 'Late',
-                'rejected' => 'Rejected',
-                default => ucfirst((string) $status),
-            };
-        }
+        $statusConfig = [
+            'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
+            'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+            'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
+            'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
+            'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],
+        ];
+        $cfg = $statusConfig[$status] ?? $statusConfig['pending'];
+        $badgeDot = $cfg[1];
+        $badgeShell = $cfg[0];
+        $badgeLabel = $cfg[2];
         $isOverdue = $payment->due_date
             && $payment->due_date->lt(now()->startOfDay())
             && $status !== 'paid';
@@ -93,7 +78,7 @@
                     <p class="text-sm text-slate-400">{{ $payment->created_at->format('M d, Y · h:i A') }}</p>
                 </div>
             </div>
-            <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold ring-1 {{ $badgeShell }}">
+            <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold {{ $badgeShell }}">
                 <span class="h-2 w-2 rounded-full {{ $badgeDot }}"></span>
                 {{ $badgeLabel }}
             </span>
@@ -215,6 +200,12 @@
                     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
                         <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Actions</h2>
                         @if($payment->status === 'pending')
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="mx-auto mb-2 h-8 w-8 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                <p class="text-sm font-semibold text-slate-700">Awaiting Proof</p>
+                                <p class="mt-1 text-xs text-slate-400">The tenant has not submitted proof yet.</p>
+                            </div>
+                        @elseif($payment->status === 'verifying')
                             <form method="POST" action="{{ route('admin.payments.verify', $payment) }}">
                                 @csrf
                                 @method('PATCH')
@@ -240,10 +231,15 @@
                                 <p class="mt-1 text-xs text-emerald-600">{{ $payment->verified_at?->format('M d, Y · h:i A') ?? 'Recorded as paid' }}</p>
                             </div>
                         @elseif($payment->status === 'rejected')
-                            <div class="rounded-xl border border-rose-100 bg-rose-50 p-4">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="mb-2 h-8 w-8 text-rose-600" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                                <p class="font-semibold text-rose-800">Payment Rejected</p>
-                                <p class="mt-1 text-xs text-rose-600">{{ $payment->remarks }}</p>
+                            <div class="rounded-xl border border-red-100 bg-red-50 p-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="mb-2 h-8 w-8 text-red-600" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                                <p class="font-semibold text-red-800">Payment Rejected</p>
+                                <p class="mt-1 text-xs text-red-600">{{ $payment->remarks }}</p>
+                            </div>
+                        @elseif($payment->status === 'late')
+                            <div class="rounded-xl border border-rose-100 bg-rose-50 p-4 text-center">
+                                <p class="text-sm font-semibold text-rose-800">Overdue</p>
+                                <p class="mt-1 text-xs text-rose-600">Awaiting tenant proof submission.</p>
                             </div>
                         @endif
                     </div>
@@ -273,8 +269,18 @@
                         <div class="flex gap-3">
                             <div class="flex flex-col items-center">
                                 @php
-                                    $t3 = $payment->status === 'rejected' ? 'bg-rose-500' : ($payment->verified_at ? 'bg-emerald-500' : 'bg-slate-200');
-                                    $t3label = $payment->status === 'rejected' ? 'Rejected' : ($payment->verified_at ? $payment->verified_at->format('M d, Y') : 'Awaiting');
+                                    $t3 = match (true) {
+                                        $payment->status === 'rejected' => 'bg-red-500',
+                                        $payment->status === 'verifying' => 'bg-indigo-500',
+                                        $payment->verified_at !== null => 'bg-emerald-500',
+                                        default => 'bg-slate-200',
+                                    };
+                                    $t3label = match (true) {
+                                        $payment->status === 'rejected' => 'Rejected',
+                                        $payment->status === 'verifying' => 'Under review',
+                                        $payment->verified_at !== null => $payment->verified_at->format('M d, Y'),
+                                        default => 'Awaiting',
+                                    };
                                 @endphp
                                 <div class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full {{ $t3 }}"></div>
                             </div>

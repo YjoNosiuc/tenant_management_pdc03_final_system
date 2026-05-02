@@ -324,18 +324,14 @@
                                         </p>
                                     @enderror
                                 </div>
-                                <div>
-                                    <label for="create-password" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
-                                        Password <span class="text-rose-500">*</span>
-                                    </label>
-                                    <input id="create-password" name="password" type="password" required placeholder="Minimum 8 characters" class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('password') border-rose-300 ring-1 ring-rose-200 @enderror" />
-                                    @error('password')
-                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-                                            {{ $message }}
-                                        </p>
-                                    @enderror
+                                <div class="flex items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="mt-0.5 h-4 w-4 shrink-0 text-indigo-500">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                                    </svg>
+                                    <p class="text-xs font-medium leading-relaxed text-indigo-700">
+                                        A temporary password <span class="font-bold">"password"</span> will be assigned.
+                                        The tenant will be prompted to change it on first login.
+                                    </p>
                                 </div>
                             </div>
                             <div class="space-y-4 border-t border-slate-100 pt-4">

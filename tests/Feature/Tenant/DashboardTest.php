@@ -73,7 +73,7 @@ class DashboardTest extends TestCase
         $response = $this->actingAs($tenantUser)->get(route('tenant.dashboard'));
 
         $response->assertOk();
-        $response->assertSee('No active lease');
+        $response->assertSee('No Active Lease');
     }
 
     public function test_dashboard_shows_no_pending_payments_when_all_caught_up(): void

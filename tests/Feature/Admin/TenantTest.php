@@ -29,7 +29,6 @@ class TenantTest extends TestCase
         $payload = [
             'name' => 'Josefa Mercado',
             'email' => 'josefa.mercado@renter.test',
-            'password' => 'SecurePass1',
             'phone_number' => '+639998887766',
             'emergency_contact_name' => 'Ramon Mercado',
             'emergency_contact_number' => '+639887766554',
@@ -46,10 +45,11 @@ class TenantTest extends TestCase
             'email' => 'josefa.mercado@renter.test',
             'name' => 'Josefa Mercado',
             'role' => 'tenant',
+            'must_change_password' => true,
         ]);
 
         $user = User::query()->where('email', 'josefa.mercado@renter.test')->firstOrFail();
-        $this->assertTrue(Hash::check('SecurePass1', $user->password));
+        $this->assertTrue(Hash::check('password', $user->password));
 
         $this->assertDatabaseHas('tenants', [
             'user_id' => $user->id,
@@ -67,7 +67,6 @@ class TenantTest extends TestCase
             ->post(route('admin.tenants.store'), [
                 'name' => 'Lourdes Navarro',
                 'email' => 'lourdes.navarro@renter.test',
-                'password' => 'AnotherPass2',
                 'phone_number' => '+639112223344',
             ]);
 
@@ -89,7 +88,6 @@ class TenantTest extends TestCase
             ->post(route('admin.tenants.store'), [
                 'name' => 'Different Person',
                 'email' => 'duplicate.email@renter.test',
-                'password' => 'Password11',
                 'phone_number' => '+639554433221',
             ]);
 

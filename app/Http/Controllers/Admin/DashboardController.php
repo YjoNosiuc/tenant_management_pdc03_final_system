@@ -27,7 +27,7 @@ class DashboardController extends Controller
             ->count();
         $pendingPayments = Payment::query()
             ->whereHas('lease.unit.property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->whereIn('status', ['pending', 'late'])
+            ->whereIn('status', ['pending', 'late', 'verifying'])
             ->count();
 
         $occupiedUnits = Unit::whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))

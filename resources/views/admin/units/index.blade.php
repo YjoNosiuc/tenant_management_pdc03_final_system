@@ -240,7 +240,12 @@
                                         class="transition-colors duration-150 hover:bg-indigo-50/30"
                                         x-show="rowMatches({{ (int) $unit->property_id }}, @js((string) $unit->unit_number), @js((string) $unit->unit_type), @js((string) $unit->status))"
                                     >
-                                        <td class="whitespace-nowrap px-4 py-3.5 text-sm font-semibold text-slate-800">{{ $unit->unit_number }}</td>
+                                        <td class="whitespace-nowrap px-4 py-3.5">
+                                            <a href="{{ route('admin.units.show', $unit) }}"
+                                               class="font-semibold text-slate-800 hover:text-indigo-600 transition-colors duration-150 hover:underline underline-offset-2">
+                                                {{ $unit->unit_number }}
+                                            </a>
+                                        </td>
                                         <td class="max-w-xs px-4 py-3.5 text-sm text-slate-500">{{ $unit->property?->name ?? '—' }}</td>
                                         <td class="whitespace-nowrap px-4 py-3.5 text-sm text-slate-500">{{ $unit->unit_type }}</td>
                                         <td class="whitespace-nowrap px-4 py-3.5 text-sm font-semibold text-indigo-700">₱{{ number_format((float) $unit->rent_price, 2) }}</td>

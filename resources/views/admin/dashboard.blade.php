@@ -16,10 +16,11 @@
         $hour = now('Asia/Manila')->hour;
         $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
         $paymentBadge = fn (string $status) => match ($status) {
-            'paid' => 'bg-emerald-50 text-emerald-800 ring-emerald-100',
-            'pending' => 'bg-amber-50 text-amber-800 ring-amber-100',
-            'late' => 'bg-rose-50 text-rose-800 ring-rose-100',
-            'rejected' => 'bg-rose-50 text-rose-800 ring-rose-100',
+            'paid' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+            'pending' => 'bg-amber-50 text-amber-700 ring-amber-100',
+            'verifying' => 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+            'late' => 'bg-rose-50 text-rose-700 ring-rose-100',
+            'rejected' => 'bg-red-50 text-red-700 ring-red-100',
             default => 'bg-slate-50 text-slate-700 ring-slate-100',
         };
     @endphp
@@ -142,28 +143,35 @@
                                                 <td class="whitespace-nowrap px-4 py-3.5 text-sm font-bold text-indigo-700">₱{{ number_format((float) $payment->amount_paid, 2) }}</td>
                                                 <td class="whitespace-nowrap px-4 py-3.5 text-sm text-slate-500">{{ $payment->due_date?->format('M d, Y') }}</td>
                                                 <td class="whitespace-nowrap px-4 py-3.5">
-                                                    <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 {{ $paymentBadge($payment->status) }}">
-                                                        <span class="h-1.5 w-1.5 rounded-full {{ match($payment->status) { 'paid' => 'bg-emerald-500', 'pending' => 'bg-amber-500', 'late', 'rejected' => 'bg-rose-500', default => 'bg-slate-400' } }}"></span>
-                                                        {{ ucfirst($payment->status) }}
+                                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 {{ $paymentBadge($payment->status) }}">
+                                                        <span class="h-1.5 w-1.5 rounded-full {{ match ($payment->status) {
+                                                            'paid' => 'bg-emerald-400',
+                                                            'pending' => 'bg-amber-400',
+                                                            'verifying' => 'bg-indigo-400 animate-pulse',
+                                                            'late' => 'bg-rose-400',
+                                                            'rejected' => 'bg-red-400',
+                                                            default => 'bg-slate-400',
+                                                        } }}"></span>
+                                                        {{ match ($payment->status) {
+                                                            'pending' => 'Pending',
+                                                            'verifying' => 'Verifying',
+                                                            'paid' => 'Paid',
+                                                            'late' => 'Late',
+                                                            'rejected' => 'Rejected',
+                                                            default => ucfirst($payment->status),
+                                                        } }}
                                                     </span>
                                                 </td>
                                                 <td class="whitespace-nowrap px-4 py-3.5 text-right">
-                                                    @if(in_array($payment->status, ['pending', 'late'], true))
-                                                        <form action="{{ route('admin.payments.verify', $payment) }}" method="POST" class="inline">
-                                                            @csrf
-                                                            @method('PATCH')
-                                                            <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition-all duration-150 hover:bg-indigo-100">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                                                                Verify
-                                                            </button>
-                                                        </form>
-                                                    @else
-                                                        <div class="flex items-center justify-end gap-1">
-                                                            <a href="{{ route('admin.payments.show', $payment) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150" title="View" aria-label="View">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-                                                            </a>
-                                                        </div>
-                                                    @endif
+                                                    <a href="{{ route('admin.payments.show', $payment) }}"
+                                                       class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all duration-150"
+                                                       title="View Payment"
+                                                       aria-label="View Payment">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                        </svg>
+                                                    </a>
                                                 </td>
                                             </tr>
                                         @endforeach

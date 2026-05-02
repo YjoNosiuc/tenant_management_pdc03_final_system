@@ -35,4 +35,9 @@ class Unit extends Model
     {
         return $this->hasMany(Lease::class);
     }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(UnitImage::class)->orderBy('order');
+    }
 }
