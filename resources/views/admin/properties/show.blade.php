@@ -14,6 +14,8 @@
             currentIndex: 0,
             images: @js($lightboxUrls),
             editOpen: false,
+            lateFeeOpen: false,
+            lateFeeType: @js($property->late_fee_type ?? 'percentage'),
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
             openLightbox(index) { this.currentIndex = index; this.lightboxOpen = true; },
             prev() { this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.images.length - 1; },
@@ -274,6 +276,103 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="mt-4 rounded-2xl bg-white p-6 ring-1 ring-slate-100">
+                    <div class="mb-4 flex items-center justify-between">
+                        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                            Late Fee Settings
+                        </p>
+                        <button type="button" @click="lateFeeOpen = !lateFeeOpen"
+                            class="text-xs font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
+                            <span x-show="!lateFeeOpen">Edit</span>
+                            <span x-show="lateFeeOpen" x-cloak>Cancel</span>
+                        </button>
+                    </div>
+
+                    <div x-show="!lateFeeOpen" class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-500">Fee Type</span>
+                            <span class="text-sm font-semibold text-slate-800 capitalize">
+                                {{ $property->late_fee_type }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-slate-500">Fee Value</span>
+                            <span class="text-sm font-semibold text-slate-800">
+                                @if($property->late_fee_type === 'percentage')
+                                    {{ $property->late_fee_value }}%
+                                @else
+                                    ₱{{ number_format((float) $property->late_fee_value, 2) }}
+                                @endif
+                            </span>
+                        </div>
+                        @if((float) $property->late_fee_value > 0)
+                        <div class="rounded-xl bg-amber-50 border border-amber-100 p-3">
+                            <p class="text-xs text-amber-700 font-medium">
+                                Example: For ₱6,500 rent →
+                                Late fee = ₱{{ number_format($property->calculateLateFee(6500), 2) }}
+                            </p>
+                        </div>
+                        @else
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                            <p class="text-xs text-slate-500">No late fee configured.</p>
+                        </div>
+                        @endif
+                    </div>
+
+                    <form x-show="lateFeeOpen" x-cloak action="{{ route('admin.properties.late-fee.update', $property) }}"
+                          method="POST" class="space-y-4">
+                        @csrf
+                        @method('PATCH')
+
+                        <div>
+                            <label class="mb-1.5 block text-sm font-semibold text-slate-700">
+                                Fee Type
+                            </label>
+                            <select name="late_fee_type"
+                                x-model="lateFeeType"
+                                class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 transition-all">
+                                <option value="percentage" {{ $property->late_fee_type === 'percentage' ? 'selected' : '' }}>
+                                    Percentage of Monthly Rent
+                                </option>
+                                <option value="fixed" {{ $property->late_fee_type === 'fixed' ? 'selected' : '' }}>
+                                    Fixed Amount
+                                </option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="mb-1.5 block text-sm font-semibold text-slate-700">
+                                <span x-show="lateFeeType === 'percentage'">Percentage (%)</span>
+                                <span x-show="lateFeeType === 'fixed'" x-cloak>Fixed Amount (₱)</span>
+                            </label>
+                            <div class="relative">
+                                <span x-show="lateFeeType === 'fixed'" x-cloak
+                                    class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">₱</span>
+                                <input type="number"
+                                    name="late_fee_value"
+                                    step="0.01"
+                                    min="0"
+                                    value="{{ old('late_fee_value', $property->late_fee_value) }}"
+                                    :class="lateFeeType === 'fixed' ? 'pl-8' : 'pl-4'"
+                                    class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pr-4 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 transition-all" />
+                                <span x-show="lateFeeType === 'percentage'"
+                                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-sm font-semibold text-slate-400">%</span>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-400">
+                                Set to 0 to disable late fees for this property.
+                            </p>
+                        </div>
+
+                        <button type="submit"
+                            class="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 active:scale-[0.98] transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                            Save Settings
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

@@ -23,6 +23,8 @@
         $badgeDot = $cfg[1];
         $badgeShell = $cfg[0];
         $badgeLabel = $cfg[2];
+        $breakdown = $payment->getBreakdown();
+        $hasLateFee = $payment->hasLateFee();
 
         $isOverdue = $payment->due_date
             && $payment->due_date->lt(now()->startOfDay())
@@ -123,8 +125,65 @@
                     <p class="mb-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Payment information</p>
                     <div>
                         <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Amount due</p>
-                        <p class="mt-1 text-4xl font-extrabold tracking-tight text-slate-900">₱{{ number_format((float) $payment->amount_paid, 2) }}</p>
+                        <div class="mt-2 rounded-xl {{ $hasLateFee ? 'bg-rose-50 border border-rose-100' : 'bg-slate-50 border border-slate-100' }} p-4">
+                            <div class="flex items-center justify-between py-2">
+                                <span class="text-sm text-slate-600">Original Rent</span>
+                                <span class="text-sm font-semibold text-slate-800">
+                                    ₱{{ number_format($breakdown['original_rent'], 2) }}
+                                </span>
+                            </div>
+
+                            @if($hasLateFee)
+                            <div class="flex items-center justify-between py-2 border-t border-rose-100">
+                                <span class="text-sm text-rose-600 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 shrink-0 text-rose-500" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                    </svg>
+                                    Late Fee
+                                    @php
+                                        $feeProperty = $payment->lease->unit->property;
+                                        $feeLabel = $feeProperty->late_fee_type === 'percentage'
+                                            ? "({$feeProperty->late_fee_value}%)"
+                                            : '(Fixed)';
+                                    @endphp
+                                    <span class="text-xs text-rose-400">{{ $feeLabel }}</span>
+                                </span>
+                                <span class="text-sm font-semibold text-rose-600">
+                                    + ₱{{ number_format($breakdown['late_fee_amount'], 2) }}
+                                </span>
+                            </div>
+
+                            <div class="border-t border-rose-200 mt-2 pt-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-bold text-slate-900">Total Amount Due</span>
+                                    <span class="text-xl font-extrabold text-rose-700">
+                                        ₱{{ number_format($breakdown['total_amount_due'], 2) }}
+                                    </span>
+                                </div>
+                            </div>
+                            @else
+                            <div class="border-t border-slate-200 mt-2 pt-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-bold text-slate-900">Total Amount Due</span>
+                                    <span class="text-xl font-extrabold text-slate-900">
+                                        ₱{{ number_format($breakdown['total_amount_due'], 2) }}
+                                    </span>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
                     </div>
+
+                    @if($payment->status === 'late')
+                    <div class="mt-3 rounded-xl bg-rose-50 border border-rose-100 p-3 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                        </svg>
+                        <p class="text-xs font-medium text-rose-700">
+                            This payment is overdue. Late fee has been applied.
+                        </p>
+                    </div>
+                    @endif
                     <div class="mt-6 grid gap-5 sm:grid-cols-2">
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Due date</span>
@@ -230,7 +289,7 @@
                         @if($payment->payment_date)
                             <p class="mt-3 text-xs text-slate-400">Submitted on {{ $payment->payment_date->format('M d, Y') }}</p>
                         @endif
-                    @elseif(in_array($payment->status, ['pending', 'verifying', 'rejected'], true))
+                    @elseif(in_array($payment->status, ['pending', 'late', 'verifying', 'rejected'], true))
                         @if(! $isEarliestUnpaid && $payment->status === 'pending' && $earliestUnpaid)
                             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6">
                                 <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100">

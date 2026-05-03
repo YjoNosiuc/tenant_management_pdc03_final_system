@@ -3,11 +3,13 @@
 namespace Tests\Traits;
 
 use App\Models\Lease;
+use App\Models\OwnerTerms;
 use App\Models\Payment;
 use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\Unit;
 use App\Models\User;
+use App\Support\DefaultRentalTerms;
 use Illuminate\Support\Str;
 
 trait CreatesTestData
@@ -98,7 +100,7 @@ trait CreatesTestData
 
     protected function createPayment(int $leaseId, string $status = 'pending', array $attributes = []): Payment
     {
-        return Payment::create(array_merge([
+        $merged = array_merge([
             'lease_id' => $leaseId,
             'amount_paid' => 18500.00,
             'due_date' => now()->toDateString(),
@@ -108,6 +110,24 @@ trait CreatesTestData
             'verified_at' => null,
             'status' => $status,
             'remarks' => null,
-        ], $attributes));
+        ], $attributes);
+
+        if (! array_key_exists('late_fee_amount', $merged)) {
+            $merged['late_fee_amount'] = 0;
+        }
+        if (! array_key_exists('total_amount_due', $merged)) {
+            $merged['total_amount_due'] = $merged['amount_paid'];
+        }
+
+        return Payment::create($merged);
+    }
+
+    protected function createOwnerTerms(User $owner, int $version = 1, ?string $content = null): OwnerTerms
+    {
+        return OwnerTerms::create([
+            'owner_id' => $owner->id,
+            'version' => $version,
+            'content' => $content ?? trim(DefaultRentalTerms::content()),
+        ]);
     }
 }

@@ -36,6 +36,8 @@ class LeasePaymentService
                 $payments[] = [
                     'lease_id' => $lease->id,
                     'amount_paid' => $amount,
+                    'late_fee_amount' => 0,
+                    'total_amount_due' => $amount,
                     'due_date' => $dueStr,
                     'payment_date' => null,
                     'payment_method' => null,

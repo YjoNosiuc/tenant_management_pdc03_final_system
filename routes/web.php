@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\LeaseController as AdminLeaseController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\PropertyController as AdminPropertyController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Admin\UnitController as AdminUnitController;
 use App\Http\Controllers\ProfileController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Tenant\ChangePasswordController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use App\Http\Controllers\Tenant\NotificationController as TenantNotificationController;
 use App\Http\Controllers\Tenant\PaymentController as TenantPaymentController;
+use App\Http\Controllers\Tenant\TermsController as TenantTermsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -42,6 +44,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('properties', AdminPropertyController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('/properties/{property}', [AdminPropertyController::class, 'show'])
             ->name('properties.show');
+        Route::patch('/properties/{property}/late-fee', [AdminPropertyController::class, 'updateLateFee'])
+            ->name('properties.late-fee.update');
         Route::post('/properties/{property}/images', [AdminPropertyController::class, 'uploadImages'])
             ->name('properties.images.upload');
         Route::delete('/properties/{property}/images/{image}', [AdminPropertyController::class, 'deleteImage'])
@@ -66,6 +70,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/notifications/{id}/redirect', [AdminNotificationController::class, 'markAsReadAndRedirect'])->name('notifications.redirect');
         Route::patch('/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
         Route::patch('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+        Route::patch('/settings/terms', [AdminSettingsController::class, 'updateTerms'])->name('settings.terms.update');
     });
 
     Route::middleware(['role:tenant'])->group(function () {
@@ -76,7 +83,12 @@ Route::middleware(['auth'])->group(function () {
             ->name('password.change.update');
     });
 
-    Route::middleware(['role:tenant', 'password.change'])->prefix('tenant')->name('tenant.')->group(function () {
+    Route::middleware(['auth', 'role:tenant', 'password.change'])->group(function () {
+        Route::get('/tenant/terms', [TenantTermsController::class, 'show'])->name('terms.show');
+        Route::post('/tenant/terms/agree', [TenantTermsController::class, 'agree'])->name('terms.agree');
+    });
+
+    Route::middleware(['role:tenant', 'password.change', 'terms.agree'])->prefix('tenant')->name('tenant.')->group(function () {
         Route::get('/dashboard', [TenantDashboardController::class, 'index'])->name('dashboard');
         Route::get('/payments', [TenantPaymentController::class, 'index'])->name('payments.index');
         Route::get('/payments/{payment}', [TenantPaymentController::class, 'show'])->name('payments.show');

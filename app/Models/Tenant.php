@@ -56,4 +56,17 @@ class Tenant extends Model
     {
         return $this->hasManyThrough(Payment::class, Lease::class);
     }
+
+    public function termAgreements(): HasMany
+    {
+        return $this->hasMany(TenantTermAgreement::class);
+    }
+
+    public function hasAgreedToTerms(int $ownerId, int $version): bool
+    {
+        return $this->termAgreements()
+            ->where('owner_id', $ownerId)
+            ->where('version', $version)
+            ->exists();
+    }
 }

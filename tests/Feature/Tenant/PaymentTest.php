@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tenant;
 
+use App\Models\TenantTermAgreement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -227,5 +228,92 @@ class PaymentTest extends TestCase
             'id' => $payment->id,
             'status' => 'pending',
         ]);
+    }
+
+    public function test_tenant_without_active_lease_is_not_redirected_to_terms_page(): void
+    {
+        $owner = $this->createAdmin();
+        $this->createOwnerTerms($owner);
+        $tenantUser = $this->createTenantUser([], [], $owner);
+
+        $response = $this->actingAs($tenantUser)->get(route('tenant.dashboard'));
+
+        $response->assertOk();
+    }
+
+    public function test_tenant_with_active_lease_sees_terms_page_if_not_agreed(): void
+    {
+        $owner = $this->createAdmin();
+        $this->createOwnerTerms($owner);
+        $tenantUser = $this->createTenantUser([], [], $owner);
+        $property = $this->createProperty([], $owner);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+
+        $response = $this->actingAs($tenantUser)->get(route('terms.show'));
+
+        $response->assertOk();
+        $response->assertSeeText('Terms & Conditions');
+    }
+
+    public function test_tenant_cannot_access_dashboard_without_agreeing_to_terms(): void
+    {
+        $owner = $this->createAdmin();
+        $this->createOwnerTerms($owner);
+        $tenantUser = $this->createTenantUser([], [], $owner);
+        $property = $this->createProperty([], $owner);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+
+        $response = $this->actingAs($tenantUser)->get(route('tenant.dashboard'));
+
+        $response->assertRedirect(route('terms.show'));
+    }
+
+    public function test_tenant_can_agree_to_terms_and_access_dashboard(): void
+    {
+        $owner = $this->createAdmin();
+        $terms = $this->createOwnerTerms($owner);
+        $tenantUser = $this->createTenantUser([], [], $owner);
+        $property = $this->createProperty([], $owner);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+
+        $this->actingAs($tenantUser)
+            ->post(route('terms.agree'), ['agreed' => '1'])
+            ->assertRedirect(route('tenant.dashboard'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('tenant_term_agreements', [
+            'tenant_id' => $tenantUser->tenant->id,
+            'owner_id' => $owner->id,
+            'version' => $terms->version,
+        ]);
+
+        $this->actingAs($tenantUser)->get(route('tenant.dashboard'))->assertOk();
+    }
+
+    public function test_when_owner_updates_terms_version_tenant_must_re_agree(): void
+    {
+        $owner = $this->createAdmin();
+        $terms = $this->createOwnerTerms($owner);
+        $tenantUser = $this->createTenantUser([], [], $owner);
+        $property = $this->createProperty([], $owner);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+
+        TenantTermAgreement::create([
+            'tenant_id' => $tenantUser->tenant->id,
+            'owner_id' => $owner->id,
+            'version' => $terms->version,
+            'agreed_at' => now()->subDay(),
+        ]);
+
+        $terms->update([
+            'content' => $terms->content.' Additional clause for version bump.',
+            'version' => $terms->version + 1,
+        ]);
+
+        $this->actingAs($tenantUser)->get(route('tenant.dashboard'))->assertRedirect(route('terms.show'));
     }
 }

@@ -126,4 +126,54 @@ class PropertyTest extends TestCase
         $response->assertOk();
         $response->assertDontSee('Hidden After Delete Plaza');
     }
+
+    public function test_admin_can_update_late_fee_settings(): void
+    {
+        $admin = $this->createAdmin();
+        $property = $this->createProperty([], $admin);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.properties.show', $property))
+            ->patch(route('admin.properties.late-fee.update', $property), [
+                'late_fee_type' => 'fixed',
+                'late_fee_value' => '25.50',
+            ]);
+
+        $response->assertRedirect(route('admin.properties.show', $property));
+        $response->assertSessionHas('success', 'Late fee settings updated successfully.');
+
+        $property->refresh();
+        $this->assertSame('fixed', $property->late_fee_type);
+        $this->assertEquals(25.5, (float) $property->late_fee_value);
+    }
+
+    public function test_calculate_late_fee_returns_correct_amount_for_percentage(): void
+    {
+        $property = new Property([
+            'late_fee_type' => 'percentage',
+            'late_fee_value' => 10,
+        ]);
+
+        $this->assertSame(1000.0, $property->calculateLateFee(10000.0));
+    }
+
+    public function test_calculate_late_fee_returns_correct_amount_for_fixed(): void
+    {
+        $property = new Property([
+            'late_fee_type' => 'fixed',
+            'late_fee_value' => 350.75,
+        ]);
+
+        $this->assertSame(350.75, $property->calculateLateFee(99999.0));
+    }
+
+    public function test_calculate_late_fee_returns_zero_when_late_fee_value_is_zero(): void
+    {
+        $property = new Property([
+            'late_fee_type' => 'percentage',
+            'late_fee_value' => 0,
+        ]);
+
+        $this->assertSame(0.0, $property->calculateLateFee(6500.0));
+    }
 }

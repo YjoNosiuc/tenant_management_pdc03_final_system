@@ -377,6 +377,8 @@
                         $overdueDays = $due && $due->lt(now()->startOfDay())
                             ? (int) $due->copy()->startOfDay()->diffInDays(now()->startOfDay())
                             : 0;
+                        $breakdown = $nextPayment->getBreakdown();
+                        $hasLateFee = $nextPayment->hasLateFee();
                     @endphp
                     <div class="mt-4 space-y-4">
                         <div>
@@ -398,7 +400,46 @@
                             @endif
                         </div>
 
-                        <p class="text-4xl font-extrabold tracking-tight text-slate-900">₱{{ number_format((float) $nextPayment->amount_paid, 2) }}</p>
+                        @if($hasLateFee)
+                        <div class="mt-4 rounded-xl bg-rose-50 border border-rose-100 p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-500">Original Rent</span>
+                                <span class="text-xs font-semibold text-slate-700">
+                                    ₱{{ number_format($breakdown['original_rent'], 2) }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-rose-600 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0 text-rose-500" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                    </svg>
+                                    Late Fee
+                                </span>
+                                <span class="text-xs font-semibold text-rose-600">
+                                    + ₱{{ number_format($breakdown['late_fee_amount'], 2) }}
+                                </span>
+                            </div>
+                            <div class="border-t border-rose-200 pt-2 flex items-center justify-between">
+                                <span class="text-sm font-bold text-slate-900">Total Due</span>
+                                <span class="text-2xl font-extrabold text-rose-700">
+                                    ₱{{ number_format($breakdown['total_amount_due'], 2) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 rounded-xl bg-rose-50 border border-rose-100 p-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                            </svg>
+                            <p class="text-xs font-medium text-rose-700">
+                                This payment is overdue. Please settle immediately.
+                            </p>
+                        </div>
+                        @else
+                        <p class="text-4xl font-extrabold tracking-tight text-slate-900 mt-4">
+                            ₱{{ number_format($breakdown['total_amount_due'], 2) }}
+                        </p>
+                        @endif
 
                         @php $npc = $paymentCfg($nextPayment->status); @endphp
                         <span class="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold {{ $npc[0] }}">
@@ -456,10 +497,12 @@
                                 Resubmit Proof
                             </button>
                         @elseif($nextPayment->status === 'late')
+                            @unless($hasLateFee)
                             <div class="mt-4 flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50 p-4">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
                                 <p class="text-xs font-medium text-rose-700">This payment is overdue.</p>
                             </div>
+                            @endunless
                             <button
                                 type="button"
                                 class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white transition-all duration-150 hover:bg-rose-500 active:scale-[0.98]"
@@ -580,7 +623,7 @@
                             <svg class="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
                             <div>
                                 <p class="text-sm font-semibold text-indigo-800">Payment for Unit {{ $lease?->unit?->unit_number ?? '—' }}</p>
-                                <p class="mt-0.5 text-xs text-indigo-600">Amount due: ₱{{ number_format((float) ($nextPayment?->amount_paid ?? 0), 2) }}</p>
+                                <p class="mt-0.5 text-xs text-indigo-600">Amount due: ₱{{ number_format((float) ($nextPayment ? $nextPayment->getBreakdown()['total_amount_due'] : 0), 2) }}</p>
                             </div>
                         </div>
 

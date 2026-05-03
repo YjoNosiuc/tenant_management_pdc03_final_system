@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('leases:notify-expiring')->dailyAt('08:00');
+Schedule::command('payments:mark-late')->dailyAt('00:01');

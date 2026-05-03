@@ -189,6 +189,26 @@ class PropertyController extends Controller
         return back()->with('success', 'Property updated successfully.');
     }
 
+    public function updateLateFee(Request $request, Property $property): RedirectResponse
+    {
+        $property = Property::query()
+            ->where('owner_id', auth()->id())
+            ->whereKey($property->getKey())
+            ->firstOrFail();
+
+        $request->validate([
+            'late_fee_type' => ['required', 'in:fixed,percentage'],
+            'late_fee_value' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $property->update([
+            'late_fee_type' => $request->late_fee_type,
+            'late_fee_value' => $request->late_fee_value,
+        ]);
+
+        return back()->with('success', 'Late fee settings updated successfully.');
+    }
+
     public function destroy(Property $property): RedirectResponse
     {
         $property = Property::query()

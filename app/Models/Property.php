@@ -16,6 +16,8 @@ class Property extends Model
         'name',
         'address',
         'description',
+        'late_fee_type',
+        'late_fee_value',
     ];
 
     public function owner(): BelongsTo
@@ -31,5 +33,18 @@ class Property extends Model
     public function images(): HasMany
     {
         return $this->hasMany(PropertyImage::class)->orderBy('order');
+    }
+
+    public function calculateLateFee(float $monthlyRent): float
+    {
+        if ((float) $this->late_fee_value <= 0) {
+            return 0.0;
+        }
+
+        if ($this->late_fee_type === 'percentage') {
+            return round(((float) $this->late_fee_value / 100) * $monthlyRent, 2);
+        }
+
+        return (float) $this->late_fee_value;
     }
 }

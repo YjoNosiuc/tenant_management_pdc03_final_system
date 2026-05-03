@@ -78,6 +78,8 @@
                             'payment_submitted' => ['bg-indigo-100 text-indigo-600', 'banknote'],
                             'payment_verified'  => ['bg-emerald-100 text-emerald-600', 'check-circle'],
                             'payment_rejected'  => ['bg-rose-100 text-rose-600', 'x-circle'],
+                            'payment_late' => ['bg-rose-100 text-rose-600', 'exclamation-triangle'],
+                            'payment_late_owner' => ['bg-rose-100 text-rose-600', 'exclamation-triangle'],
                             'lease_expiring'    => ['bg-amber-100 text-amber-600', 'calendar'],
                             default             => ['bg-slate-100 text-slate-500', 'bell'],
                         };
@@ -106,6 +108,10 @@
                                         @elseif($iconConfig[1] === 'calendar')
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                            </svg>
+                                        @elseif($iconConfig[1] === 'exclamation-triangle')
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                                             </svg>
                                         @else
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
