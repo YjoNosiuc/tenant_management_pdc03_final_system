@@ -55,7 +55,11 @@ trait CreatesTestData
             'phone_number' => '+639171234567',
             'emergency_contact_name' => 'Miguel Del Rosario',
             'emergency_contact_number' => '+639189998887',
-            'address' => '123 Rizal Street, Angeles City, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'Angeles City',
+            'barangay' => 'Sto. Domingo',
+            'address_line1' => '123 Rizal Street',
+            'address_line2' => null,
         ], $tenantAttributes));
 
         return $user->fresh(['tenant']);
@@ -68,7 +72,11 @@ trait CreatesTestData
         return Property::create(array_merge([
             'owner_id' => $owner->id,
             'name' => 'Sunrise Apartments',
-            'address' => 'MacArthur Highway, Mabalacat, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'Mabalacat City',
+            'barangay' => 'Dolores',
+            'address_line1' => 'MacArthur Highway',
+            'address_line2' => null,
             'description' => 'Mid-rise residential building with 24-hour security.',
         ], $attributes));
     }
@@ -78,7 +86,7 @@ trait CreatesTestData
         return Unit::create(array_merge([
             'property_id' => $propertyId,
             'unit_number' => '12B',
-            'unit_type' => 'Two-bedroom apartment',
+            'unit_type' => '2BR',
             'rent_price' => 18500.50,
             'status' => $status,
         ], $attributes));

@@ -10,18 +10,12 @@
     <div
         class="mx-auto max-w-7xl space-y-8"
         x-data="{
-            q: '',
             createOpen: false,
             editOpen: false,
             deleteOpen: false,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
-            selectedProperty: { id: null, name: '', address: '', description: '' },
-            deleteProperty: { id: null, name: '' },
-            matches(name, address) {
-                const s = this.q.trim().toLowerCase();
-                if (!s) return true;
-                return (name || '').toLowerCase().includes(s) || (address || '').toLowerCase().includes(s);
-            }
+            selectedProperty: { id: null, name: '', province: '', city: '', barangay: '', address_line1: '', address_line2: '', description: '' },
+            deleteProperty: { id: null, name: '' }
         }"
         x-init="
             @if(session()->has('success') || session()->has('error'))
@@ -35,7 +29,11 @@
                 selectedProperty = {
                     id: {{ (int) old('edit_property_id', 0) }},
                     name: @js(old('name', '')),
-                    address: @js(old('address', '')),
+                    province: @js(old('province', '')),
+                    city: @js(old('city', '')),
+                    barangay: @js(old('barangay', '')),
+                    address_line1: @js(old('address_line1', '')),
+                    address_line2: @js(old('address_line2', '')),
                     description: @js(old('description', ''))
                 };
             @endif
@@ -72,14 +70,6 @@
                     <p class="mt-1 pl-3 text-sm text-slate-500">Manage your rental properties</p>
                 </div>
             </div>
-            <button
-                type="button"
-                class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-indigo-500 active:scale-[0.98]"
-                @click="createOpen = true"
-            >
-                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                Add Property
-            </button>
         </div>
 
         {{-- Stats row --}}
@@ -125,114 +115,220 @@
             </div>
         </div>
 
-        {{-- Table card --}}
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-900">All properties</h2>
-                    <p class="mt-1 text-sm text-slate-500">Search and manage units per building</p>
-                </div>
-                <div class="w-full sm:max-w-xs">
-                    <label for="property-search" class="sr-only">Search properties</label>
-                    <div class="relative">
+        <form method="GET" action="{{ route('admin.properties.index') }}">
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                {{-- Left: Search + Sort --}}
+                <div class="flex flex-1 flex-wrap gap-3">
+
+                    {{-- Search --}}
+                    <div class="relative flex-1 min-w-[12rem] max-w-sm">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <svg class="h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-slate-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                            </svg>
                         </div>
-                        <input
-                            id="property-search"
-                            type="search"
-                            x-model="q"
-                            placeholder="Search by name or address…"
-                            class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition-all duration-150 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-md"
-                        />
+                        <input type="text"
+                            name="search"
+                            value="{{ request('search') }}"
+                            placeholder="Search properties..."
+                            class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
                     </div>
+
+                    {{-- Sort --}}
+                    <select name="sort"
+                        onchange="this.form.submit()"
+                        class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                        <option value="name_asc"    {{ request('sort', 'name_asc') === 'name_asc'    ? 'selected' : '' }}>Name A–Z</option>
+                        <option value="name_desc"   {{ request('sort') === 'name_desc'   ? 'selected' : '' }}>Name Z–A</option>
+                        <option value="newest"      {{ request('sort') === 'newest'      ? 'selected' : '' }}>Newest First</option>
+                        <option value="oldest"      {{ request('sort') === 'oldest'      ? 'selected' : '' }}>Oldest First</option>
+                    </select>
                 </div>
+
+                {{-- Right: Add button --}}
+                <button type="button"
+                    @click="createOpen = true"
+                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:scale-[0.98] transition-all duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Add Property
+                </button>
             </div>
 
-            @if($properties->isEmpty())
-                <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-20 text-center">
-                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-indigo-400 shadow-sm ring-1 ring-slate-100">
-                        <svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-9H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
-                    </div>
-                    <p class="mt-5 text-base font-semibold text-slate-800">No properties yet</p>
-                    <p class="mt-2 max-w-md text-sm text-slate-500">Add your first rental property to start organizing units, leases, and payments in one place.</p>
-                    <button type="button" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98]" @click="createOpen = true">
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                        Add Property
-                    </button>
-                </div>
-            @else
-                <div class="overflow-hidden rounded-xl ring-1 ring-slate-100">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-100 text-sm">
-                            <thead class="divide-y divide-slate-100 bg-slate-50/80">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Property Name</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Address</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Units</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Description</th>
-                                    <th scope="col" class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-400">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50 bg-white">
-                                @foreach($properties as $property)
-                                    <tr
-                                        class="transition-colors duration-150 hover:bg-indigo-50/30"
-                                        x-show="matches(@js($property->name), @js($property->address))"
-                                    >
-                                        <td class="whitespace-nowrap px-4 py-3.5">
-                                            <div class="flex items-center gap-2.5">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-slate-400 shrink-0">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
-                                                </svg>
-                                                <a href="{{ route('admin.properties.show', $property) }}"
-                                                   class="font-semibold text-slate-800 hover:text-indigo-600 transition-colors duration-150 hover:underline underline-offset-2">
-                                                    {{ $property->name }}
-                                                </a>
-                                            </div>
-                                        </td>
-                                        <td class="max-w-xs px-4 py-3.5 text-sm text-slate-500">{{ $property->address }}</td>
-                                        <td class="whitespace-nowrap px-4 py-3.5">
-                                            <span class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
-                                                {{ $property->units_count }} {{ Str::plural('unit', $property->units_count) }}
-                                            </span>
-                                        </td>
-                                        <td class="max-w-xs truncate px-4 py-3.5 text-sm italic text-slate-300" title="{{ $property->description }}">{{ $property->description ? $property->description : 'No description added' }}</td>
-                                        <td class="whitespace-nowrap px-4 py-3.5 text-right">
-                                            <div class="flex items-center justify-end gap-1">
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-all duration-150"
-                                                    title="Edit"
-                                                    aria-label="Edit"
-                                                    @click="selectedProperty = { id: {{ $property->id }}, name: '{{ addslashes((string) $property->name) }}', address: '{{ addslashes((string) $property->address) }}', description: '{{ addslashes(str_replace(["\r", "\n"], ' ', (string) ($property->description ?? ''))) }}' }; editOpen = true"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-150"
-                                                    title="Delete"
-                                                    aria-label="Delete"
-                                                    @click="deleteProperty = { id: {{ $property->id }}, name: '{{ addslashes((string) $property->name) }}' }; deleteOpen = true"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    {{ $properties->links() }}
+            {{-- Active filters --}}
+            @if(request()->filled('search') || request('sort', 'name_asc') !== 'name_asc')
+                <div class="mb-4 flex items-center gap-2 flex-wrap">
+                    @if(request('search'))
+                        <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                            Search: "{{ request('search') }}"
+                        </span>
+                    @endif
+                    <a href="{{ route('admin.properties.index') }}"
+                       class="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                        Clear
+                    </a>
                 </div>
             @endif
+        </form>
+
+        {{-- Results count --}}
+        <div class="mb-4 flex items-center justify-between">
+            <p class="text-sm text-slate-500">
+                Showing <span class="font-semibold text-slate-700">{{ $properties->total() }}</span> properties
+                @if(request('search'))
+                    <span class="text-indigo-600 font-medium">(filtered)</span>
+                @endif
+            </p>
         </div>
+
+        @if($properties->isEmpty())
+            <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-20 text-center">
+                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-slate-300">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
+                    </svg>
+                </div>
+                <p class="text-base font-semibold text-slate-700">No properties found</p>
+                <p class="text-sm text-slate-400 mt-1">Try adjusting your search or add a new property.</p>
+                <button type="button" @click="createOpen = true"
+                    class="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-all">
+                    + Add Property
+                </button>
+            </div>
+        @else
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach($properties as $property)
+                    @php
+                        $firstImage = $property->images->first();
+                        $occupiedCount = $property->units->where('status', 'occupied')->count();
+                        $vacantCount = $property->units->where('status', 'vacant')->count();
+                        $avgRent = $property->units->avg('rent_price') ?? 0;
+                    @endphp
+
+                    <div class="group relative flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+
+                        {{-- Image area --}}
+                        <a href="{{ route('admin.properties.show', $property) }}" class="block rounded-t-2xl overflow-hidden">
+                            <div class="relative h-48 w-full overflow-hidden bg-slate-100">
+                                @if($firstImage)
+                                    <img src="{{ Storage::url($firstImage->image_path) }}"
+                                         class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                         alt="{{ $property->name }}" />
+                                @else
+                                    <div class="flex h-full w-full items-center justify-center bg-slate-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-16 h-16 text-slate-300">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
+                                        </svg>
+                                    </div>
+                                @endif
+
+                                @if($property->images->count() > 0)
+                                    <div class="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 text-white">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                                        </svg>
+                                        <span class="text-xs font-medium text-white">{{ $property->images->count() }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </a>
+
+                        <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-48 justify-end p-2">
+                            <div class="pointer-events-auto flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <button type="button"
+                                    @click.stop="selectedProperty = {{ \Illuminate\Support\Js::from([
+                                        'id' => $property->id,
+                                        'name' => (string) $property->name,
+                                        'province' => (string) $property->province,
+                                        'city' => (string) $property->city,
+                                        'barangay' => (string) $property->barangay,
+                                        'address_line1' => (string) $property->address_line1,
+                                        'address_line2' => (string) ($property->address_line2 ?? ''),
+                                        'description' => str_replace(["\r", "\n"], ' ', (string) ($property->description ?? '')),
+                                    ]) }}; editOpen = true"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-sm hover:bg-white hover:text-indigo-600 transition-all backdrop-blur-sm"
+                                    title="Edit"
+                                    aria-label="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                    </svg>
+                                </button>
+
+                                <button type="button"
+                                    @click.stop="deleteProperty = { id: {{ $property->id }}, name: @js((string) $property->name) }; deleteOpen = true"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-sm hover:bg-white hover:text-red-600 transition-all backdrop-blur-sm"
+                                    title="Delete"
+                                    aria-label="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('admin.properties.show', $property) }}"
+                           class="flex flex-1 flex-col p-5">
+
+                            <h3 class="font-bold text-slate-900 text-base leading-snug group-hover:text-indigo-600 transition-colors duration-150">
+                                {{ $property->name }}
+                            </h3>
+
+                            <p class="mt-1 text-xs text-slate-400 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 shrink-0">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                {{ $property->city }}, {{ $property->province }}
+                            </p>
+
+                            <div class="my-3 border-t border-slate-100"></div>
+
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                                    </svg>
+                                    {{ $property->units->count() }} units
+                                </span>
+
+                                @if($occupiedCount > 0)
+                                    <span class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                                        {{ $occupiedCount }} occupied
+                                    </span>
+                                @endif
+
+                                @if($vacantCount > 0)
+                                    <span class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                                        {{ $vacantCount }} vacant
+                                    </span>
+                                @endif
+                            </div>
+
+                            @if($avgRent > 0)
+                                <div class="mt-3 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                                    </svg>
+                                    <span class="text-xs text-slate-500">Avg rent:</span>
+                                    <span class="text-xs font-bold text-indigo-600">₱{{ number_format($avgRent, 0) }}/mo</span>
+                                </div>
+                            @endif
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="mt-8">
+                {{ $properties->links() }}
+            </div>
+        @endif
 
         {{-- Create modal --}}
         <div x-show="createOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden" aria-labelledby="property-create-title" role="dialog" aria-modal="true">
@@ -273,17 +369,22 @@
                                 @enderror
                             </div>
                             <div>
-                                <label for="create-address" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                                    Address <span class="text-rose-500">*</span>
-                                </label>
-                                <input id="create-address" name="address" type="text" value="{{ old('_form') === 'create' ? old('address') : '' }}" required placeholder="Street, city, region" class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('address') border-rose-300 ring-1 ring-rose-200 @enderror" />
-                                @error('address')
-                                    <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-                                        {{ $message }}
-                                    </p>
-                                @enderror
+                                <x-psgc-address
+                                    :province="old('_form') === 'create' ? old('province', '') : ''"
+                                    :city="old('_form') === 'create' ? old('city', '') : ''"
+                                    :barangay="old('_form') === 'create' ? old('barangay', '') : ''"
+                                    :addressLine1="old('_form') === 'create' ? old('address_line1', '') : ''"
+                                    :addressLine2="old('_form') === 'create' ? old('address_line2', '') : ''"
+                                    :required="true"
+                                />
+                                @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
+                                    @error($_addrField)
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                @endforeach
                             </div>
                             <div>
                                 <label for="create-description" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
@@ -349,17 +450,19 @@
                                 @enderror
                             </div>
                             <div>
-                                <label for="edit-address" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                                    Address <span class="text-rose-500">*</span>
-                                </label>
-                                <input id="edit-address" name="address" type="text" x-model="selectedProperty.address" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('address') border-rose-300 ring-1 ring-rose-200 @enderror" />
-                                @error('address')
-                                    <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-                                        {{ $message }}
-                                    </p>
-                                @enderror
+                                <x-psgc-address
+                                    bind-parent
+                                    parent-key="selectedProperty"
+                                    :required="true"
+                                />
+                                @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
+                                    @error($_addrField)
+                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                @endforeach
                             </div>
                             <div>
                                 <label for="edit-description" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">

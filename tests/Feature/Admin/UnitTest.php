@@ -29,7 +29,7 @@ class UnitTest extends TestCase
         $payload = [
             'property_id' => $property->id,
             'unit_number' => 'PH-A',
-            'unit_type' => 'Penthouse',
+            'unit_type' => '3BR',
             'rent_price' => 32500.75,
             'status' => 'vacant',
         ];
@@ -42,7 +42,7 @@ class UnitTest extends TestCase
         $this->assertDatabaseHas('units', [
             'property_id' => $property->id,
             'unit_number' => 'PH-A',
-            'unit_type' => 'Penthouse',
+            'unit_type' => '3BR',
             'status' => 'vacant',
         ]);
     }
@@ -70,7 +70,7 @@ class UnitTest extends TestCase
         $property = $this->createProperty([], $admin);
         $unit = $this->createUnit($property->id, 'vacant', [
             'unit_number' => '201',
-            'unit_type' => 'One-bedroom',
+            'unit_type' => '1BR',
             'rent_price' => 14000.00,
         ]);
 
@@ -79,7 +79,7 @@ class UnitTest extends TestCase
             ->patch(route('admin.units.update', $unit), [
                 'property_id' => $property->id,
                 'unit_number' => '201A',
-                'unit_type' => 'One-bedroom deluxe',
+                'unit_type' => '2BR',
                 'rent_price' => 15250.00,
                 'status' => 'occupied',
             ]);
@@ -88,7 +88,7 @@ class UnitTest extends TestCase
         $this->assertDatabaseHas('units', [
             'id' => $unit->id,
             'unit_number' => '201A',
-            'unit_type' => 'One-bedroom deluxe',
+            'unit_type' => '2BR',
             'rent_price' => 15250.00,
             'status' => 'occupied',
         ]);

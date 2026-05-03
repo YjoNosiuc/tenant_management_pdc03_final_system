@@ -19,8 +19,25 @@ class Tenant extends Model
         'phone_number',
         'emergency_contact_name',
         'emergency_contact_number',
-        'address',
+        'province',
+        'city',
+        'barangay',
+        'address_line1',
+        'address_line2',
     ];
+
+    public function getFullAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->address_line1,
+            $this->address_line2,
+            $this->barangay,
+            $this->city,
+            $this->province,
+        ]);
+
+        return implode(', ', $parts);
+    }
 
     public function user(): BelongsTo
     {

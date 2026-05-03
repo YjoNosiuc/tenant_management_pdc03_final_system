@@ -54,7 +54,11 @@ class TenantController extends Controller
         $tenant = Tenant::query()
             ->where('owner_id', auth()->id())
             ->whereKey($tenant->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $tenant) {
+            abort(403);
+        }
 
         $tenant->load([
             'user',
@@ -79,7 +83,11 @@ class TenantController extends Controller
             'phone_number' => ['required', 'string', 'max:50'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_number' => ['nullable', 'string', 'max:50'],
-            'address' => ['nullable', 'string', 'max:500'],
+            'province' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'barangay' => ['nullable', 'string', 'max:255'],
+            'address_line1' => ['nullable', 'string', 'max:255'],
+            'address_line2' => ['nullable', 'string', 'max:255'],
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -97,7 +105,11 @@ class TenantController extends Controller
                 'phone_number' => $validated['phone_number'],
                 'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
                 'emergency_contact_number' => $validated['emergency_contact_number'] ?? null,
-                'address' => $validated['address'] ?? null,
+                'province' => $validated['province'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'barangay' => $validated['barangay'] ?? null,
+                'address_line1' => $validated['address_line1'] ?? null,
+                'address_line2' => $validated['address_line2'] ?? null,
             ]);
         });
 
@@ -109,7 +121,11 @@ class TenantController extends Controller
         $tenant = Tenant::query()
             ->where('owner_id', auth()->id())
             ->whereKey($tenant->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $tenant) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -117,7 +133,11 @@ class TenantController extends Controller
             'phone_number' => ['required', 'string', 'max:50'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_number' => ['nullable', 'string', 'max:50'],
-            'address' => ['nullable', 'string', 'max:500'],
+            'province' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'barangay' => ['nullable', 'string', 'max:255'],
+            'address_line1' => ['nullable', 'string', 'max:255'],
+            'address_line2' => ['nullable', 'string', 'max:255'],
         ]);
 
         DB::transaction(function () use ($tenant, $validated) {
@@ -130,7 +150,11 @@ class TenantController extends Controller
                 'phone_number' => $validated['phone_number'],
                 'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
                 'emergency_contact_number' => $validated['emergency_contact_number'] ?? null,
-                'address' => $validated['address'] ?? null,
+                'province' => $validated['province'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'barangay' => $validated['barangay'] ?? null,
+                'address_line1' => $validated['address_line1'] ?? null,
+                'address_line2' => $validated['address_line2'] ?? null,
             ]);
         });
 
@@ -142,7 +166,11 @@ class TenantController extends Controller
         $tenant = Tenant::query()
             ->where('owner_id', auth()->id())
             ->whereKey($tenant->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $tenant) {
+            abort(403);
+        }
 
         $user = $tenant->user;
 

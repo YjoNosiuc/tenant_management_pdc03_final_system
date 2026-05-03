@@ -74,7 +74,7 @@
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</p>
-                                <p class="mt-0.5">{{ $tenant->address ?: '—' }}</p>
+                                <p class="mt-0.5">{{ $tenant->full_address !== '' ? $tenant->full_address : '—' }}</p>
                             </div>
                         </div>
                     </div>
@@ -279,11 +279,19 @@
                                 @enderror
                             </div>
                             <div>
-                                <label for="show-edit-address" class="mb-1.5 block text-sm font-medium text-slate-700">Address</label>
-                                <input id="show-edit-address" name="address" type="text" value="{{ old('_form') === 'edit_show' ? old('address') : $tenant->address }}" class="block w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 @error('address') border-rose-300 ring-1 ring-rose-200 @enderror" />
-                                @error('address')
-                                    <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
-                                @enderror
+                                <x-psgc-address
+                                    :province="old('_form') === 'edit_show' ? old('province', $tenant->province) : $tenant->province"
+                                    :city="old('_form') === 'edit_show' ? old('city', $tenant->city) : $tenant->city"
+                                    :barangay="old('_form') === 'edit_show' ? old('barangay', $tenant->barangay) : $tenant->barangay"
+                                    :addressLine1="old('_form') === 'edit_show' ? old('address_line1', $tenant->address_line1) : $tenant->address_line1"
+                                    :addressLine2="old('_form') === 'edit_show' ? old('address_line2', $tenant->address_line2 ?? '') : ($tenant->address_line2 ?? '')"
+                                    :required="false"
+                                />
+                                @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
+                                    @error($_addrField)
+                                        <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                                    @enderror
+                                @endforeach
                             </div>
                         </div>
 

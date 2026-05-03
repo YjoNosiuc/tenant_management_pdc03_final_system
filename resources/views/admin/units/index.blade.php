@@ -5,12 +5,6 @@
 @section('content')
     @php
         $unitPathPrefix = parse_url(route('admin.units.index'), PHP_URL_PATH) ?: '/admin/units';
-        $pageUnitsPayload = $units->map(fn ($u) => [
-            'property_id' => $u->property_id,
-            'unit_number' => (string) $u->unit_number,
-            'unit_type' => (string) $u->unit_type,
-            'status' => (string) $u->status,
-        ])->values();
     @endphp
 
     <div
@@ -21,26 +15,7 @@
             deleteOpen: false,
             selectedUnit: { id: null, property_id: '', unit_number: '', unit_type: '', rent_price: '', status: '' },
             deleteUnit: { id: null, unit_number: '' },
-            search: '',
-            filterProperty: '',
-            filterStatus: '',
-            flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
-            pageUnits: @js($pageUnitsPayload),
-            rowMatches(propertyId, unitNumber, unitType, status) {
-                const pid = this.filterProperty;
-                if (pid && String(propertyId) !== String(pid)) return false;
-                if (this.filterStatus && status !== this.filterStatus) return false;
-                const s = (this.search || '').trim().toLowerCase();
-                if (s) {
-                    const n = (unitNumber || '').toLowerCase();
-                    const t = (unitType || '').toLowerCase();
-                    if (!n.includes(s) && !t.includes(s)) return false;
-                }
-                return true;
-            },
-            filteredAny() {
-                return this.pageUnits.some((u) => this.rowMatches(u.property_id, u.unit_number, u.unit_type, u.status));
-            }
+            flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }}
         }"
         x-init="
             @if(session()->has('success') || session()->has('error'))
@@ -91,14 +66,6 @@
                 </div>
                 <p class="mt-1 pl-3 text-sm text-slate-500">Manage all rental units across your properties</p>
             </div>
-            <button
-                type="button"
-                class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-indigo-500 active:scale-[0.98]"
-                @click="createOpen = true"
-            >
-                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                Add Unit
-            </button>
         </div>
 
         {{-- Stats row --}}
@@ -147,7 +114,7 @@
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-sm font-medium text-slate-500">Average Rent</p>
-                        <p class="mt-2 text-3xl font-bold tracking-tight text-indigo-700">₱{{ number_format($avgRent, 2) }}</p>
+                        <p class="mt-2 text-3xl font-bold tracking-tight text-indigo-700">₱{{ number_format($averageRent, 2) }}</p>
                         <p class="mt-1 text-xs text-slate-400">Across all units</p>
                     </div>
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50">
@@ -157,148 +124,231 @@
             </div>
         </div>
 
-        {{-- Table card --}}
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-900">All units</h2>
-                    <p class="mt-1 text-sm text-slate-500">Filter and manage units on this page</p>
+        {{-- Filter Form --}}
+        <form method="GET" action="{{ route('admin.units.index') }}">
+            <div class="mb-6 flex flex-col flex-wrap gap-3 lg:flex-row lg:items-center">
+
+                {{-- Search --}}
+                <div class="relative w-full max-w-xs lg:flex-1 lg:max-w-xs">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-slate-400">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                    </div>
+                    <input type="text"
+                        name="search"
+                        value="{{ request('search') }}"
+                        placeholder="Search units..."
+                        class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
                 </div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:max-w-3xl lg:flex-1">
-                    <div>
-                        <label for="filter-property" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Property</label>
-                        <select
-                            id="filter-property"
-                            x-model="filterProperty"
-                            class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                            <option value="">All properties</option>
-                            @foreach($properties as $property)
-                                <option value="{{ $property->id }}">{{ $property->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label for="filter-status" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Status</label>
-                        <select
-                            id="filter-status"
-                            x-model="filterStatus"
-                            class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                            <option value="">All statuses</option>
-                            <option value="vacant">Vacant</option>
-                            <option value="occupied">Occupied</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="unit-search" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</label>
-                        <div class="relative">
-                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <svg class="h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                            </div>
-                            <input
-                                id="unit-search"
-                                type="search"
-                                x-model="search"
-                                placeholder="Unit # or type…"
-                                class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                            />
-                        </div>
-                    </div>
-                </div>
+
+                {{-- Property Filter --}}
+                <select name="property_id"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 lg:w-auto lg:min-w-[10rem]">
+                    <option value="">All Properties</option>
+                    @foreach($properties as $property)
+                        <option value="{{ $property->id }}"
+                            {{ request('property_id') == $property->id ? 'selected' : '' }}>
+                            {{ $property->name }}
+                        </option>
+                    @endforeach
+                </select>
+
+                {{-- Status Filter --}}
+                <select name="status"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 lg:w-auto">
+                    <option value="">All Statuses</option>
+                    <option value="vacant"   {{ request('status') === 'vacant'   ? 'selected' : '' }}>Vacant</option>
+                    <option value="occupied" {{ request('status') === 'occupied' ? 'selected' : '' }}>Occupied</option>
+                </select>
+
+                {{-- Sort --}}
+                <select name="sort"
+                    onchange="this.form.submit()"
+                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 lg:w-auto">
+                    <option value="unit_asc"    {{ request('sort', 'unit_asc') === 'unit_asc'    ? 'selected' : '' }}>Unit # A–Z</option>
+                    <option value="rent_low"    {{ request('sort') === 'rent_low'    ? 'selected' : '' }}>Rent Low–High</option>
+                    <option value="rent_high"   {{ request('sort') === 'rent_high'   ? 'selected' : '' }}>Rent High–Low</option>
+                    <option value="newest"      {{ request('sort') === 'newest'      ? 'selected' : '' }}>Newest First</option>
+                </select>
+
+                {{-- Add Unit button --}}
+                <button type="button"
+                    @click="createOpen = true"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:scale-[0.98] transition-all duration-200 whitespace-nowrap lg:ml-auto lg:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Add Unit
+                </button>
             </div>
 
-            @if($units->isEmpty())
-                <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-20 text-center">
-                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-indigo-400 shadow-sm ring-1 ring-slate-100">
-                        <svg class="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
-                    </div>
-                    <p class="mt-5 text-base font-semibold text-slate-800">No units yet</p>
-                    <p class="mt-2 max-w-md text-sm text-slate-500">Create a unit to assign it to a property, set rent, and track occupancy from this list.</p>
-                    <button type="button" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98]" @click="createOpen = true">
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                        Add Unit
-                    </button>
-                </div>
-            @else
-                <div class="overflow-hidden rounded-xl ring-1 ring-slate-100">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-100 text-sm">
-                            <thead class="divide-y divide-slate-100 bg-slate-50/80">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Unit Number</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Property</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Type</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Rent Price</th>
-                                    <th scope="col" class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-slate-400">Status</th>
-                                    <th scope="col" class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-widest text-slate-400">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50 bg-white">
-                                @foreach($units as $unit)
-                                    <tr
-                                        class="transition-colors duration-150 hover:bg-indigo-50/30"
-                                        x-show="rowMatches({{ (int) $unit->property_id }}, @js((string) $unit->unit_number), @js((string) $unit->unit_type), @js((string) $unit->status))"
-                                    >
-                                        <td class="whitespace-nowrap px-4 py-3.5">
-                                            <a href="{{ route('admin.units.show', $unit) }}"
-                                               class="font-semibold text-slate-800 hover:text-indigo-600 transition-colors duration-150 hover:underline underline-offset-2">
-                                                {{ $unit->unit_number }}
-                                            </a>
-                                        </td>
-                                        <td class="max-w-xs px-4 py-3.5 text-sm text-slate-500">{{ $unit->property?->name ?? '—' }}</td>
-                                        <td class="whitespace-nowrap px-4 py-3.5 text-sm text-slate-500">{{ $unit->unit_type }}</td>
-                                        <td class="whitespace-nowrap px-4 py-3.5 text-sm font-semibold text-indigo-700">₱{{ number_format((float) $unit->rent_price, 2) }}</td>
-                                        <td class="whitespace-nowrap px-4 py-3.5">
-                                            @if($unit->status === 'occupied')
-                                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                                                    Occupied
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
-                                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                                    Vacant
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="whitespace-nowrap px-4 py-3.5 text-right">
-                                            <div class="flex items-center justify-end gap-1">
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-all duration-150"
-                                                    title="Edit"
-                                                    aria-label="Edit"
-                                                    @click="selectedUnit = { id: {{ $unit->id }}, property_id: '{{ $unit->property_id }}', unit_number: @js((string) $unit->unit_number), unit_type: @js((string) $unit->unit_type), rent_price: @js((string) $unit->rent_price), status: @js((string) $unit->status) }; editOpen = true"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-150"
-                                                    title="Delete"
-                                                    aria-label="Delete"
-                                                    @click="deleteUnit = { id: {{ $unit->id }}, unit_number: @js((string) $unit->unit_number) }; deleteOpen = true"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                                <tr x-show="pageUnits.length && !filteredAny()" x-cloak>
-                                    <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No units match your filters on this page.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    {{ $units->links() }}
+            {{-- Active filters --}}
+            @if(request()->hasAny(['search', 'property_id', 'status']) || (request()->filled('sort') && request('sort') !== 'unit_asc'))
+                <div class="mb-4 flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Filters:</span>
+                    @if(request('property_id'))
+                        <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                            {{ $properties->firstWhere('id', request('property_id'))?->name }}
+                        </span>
+                    @endif
+                    @if(request('status'))
+                        <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                            {{ ucfirst(request('status')) }}
+                        </span>
+                    @endif
+                    @if(request('search'))
+                        <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                            "{{ request('search') }}"
+                        </span>
+                    @endif
+                    <a href="{{ route('admin.units.index') }}"
+                       class="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                        Clear
+                    </a>
                 </div>
             @endif
+        </form>
+
+        {{-- Results count --}}
+        <div class="mb-4">
+            <p class="text-sm text-slate-500">
+                Showing <span class="font-semibold text-slate-700">{{ $units->total() }}</span> units
+                @if(request()->hasAny(['search', 'property_id', 'status']))
+                    <span class="text-indigo-600 font-medium">(filtered)</span>
+                @endif
+            </p>
         </div>
+
+        @if($units->isEmpty())
+            <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-20 text-center">
+                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-slate-300">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                    </svg>
+                </div>
+                <p class="text-base font-semibold text-slate-700">No units found</p>
+                <p class="text-sm text-slate-400 mt-1">Try adjusting your filters or add a new unit.</p>
+                <button type="button" @click="createOpen = true"
+                    class="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-all">
+                    + Add Unit
+                </button>
+            </div>
+        @else
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach($units as $unit)
+                    @php
+                        $firstImage = $unit->images->first();
+                        $statusConfig = [
+                            'occupied' => 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
+                            'vacant'   => 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+                        ];
+                        $dotConfig = [
+                            'occupied' => 'bg-emerald-400',
+                            'vacant'   => 'bg-amber-400',
+                        ];
+                        $cfg = $statusConfig[$unit->status] ?? $statusConfig['vacant'];
+                        $dot = $dotConfig[$unit->status] ?? $dotConfig['vacant'];
+                    @endphp
+
+                    <div class="group relative flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+
+                        <a href="{{ route('admin.units.show', $unit) }}" class="block rounded-t-2xl overflow-hidden">
+                            <div class="relative h-48 w-full overflow-hidden bg-slate-100">
+                                @if($firstImage)
+                                    <img src="{{ Storage::url($firstImage->image_path) }}"
+                                         class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                         alt="Unit {{ $unit->unit_number }}" />
+                                @else
+                                    <div class="flex h-full w-full items-center justify-center bg-slate-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-16 h-16 text-slate-300">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                                        </svg>
+                                    </div>
+                                @endif
+
+                                <div class="absolute top-2 left-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm {{ $cfg }}">
+                                        <span class="h-1.5 w-1.5 rounded-full {{ $dot }}"></span>
+                                        {{ ucfirst($unit->status) }}
+                                    </span>
+                                </div>
+
+                                @if($unit->images->count() > 0)
+                                    <div class="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 text-white">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                                        </svg>
+                                        <span class="text-xs font-medium text-white">{{ $unit->images->count() }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </a>
+
+                        <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-48 justify-end p-2">
+                            <div class="pointer-events-auto flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <button type="button"
+                                    @click.stop="selectedUnit = { id: {{ $unit->id }}, property_id: '{{ $unit->property_id }}', unit_number: @js((string) $unit->unit_number), unit_type: @js((string) $unit->unit_type), rent_price: @js((string) $unit->rent_price), status: @js((string) $unit->status) }; editOpen = true"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-sm hover:bg-white hover:text-indigo-600 transition-all backdrop-blur-sm"
+                                    title="Edit"
+                                    aria-label="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                    </svg>
+                                </button>
+                                <button type="button"
+                                    @click.stop="deleteUnit = { id: {{ $unit->id }}, unit_number: @js((string) $unit->unit_number) }; deleteOpen = true"
+                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-sm hover:bg-white hover:text-red-600 transition-all backdrop-blur-sm"
+                                    title="Delete"
+                                    aria-label="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('admin.units.show', $unit) }}"
+                           class="flex flex-1 flex-col p-5">
+
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-bold text-slate-900 text-lg leading-tight group-hover:text-indigo-600 transition-colors duration-150">
+                                    Unit {{ $unit->unit_number }}
+                                </h3>
+                                <span class="shrink-0 inline-flex items-center rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                    {{ $unit->unit_type }}
+                                </span>
+                            </div>
+
+                            <p class="mt-1 text-xs text-slate-400 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 shrink-0">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21" />
+                                </svg>
+                                {{ $unit->property?->name }}
+                            </p>
+
+                            <div class="my-3 border-t border-slate-100"></div>
+
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-xl font-extrabold text-indigo-600">
+                                    ₱{{ number_format($unit->rent_price, 0) }}
+                                </span>
+                                <span class="text-xs text-slate-400 font-medium">/ month</span>
+                            </div>
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="mt-8">
+                {{ $units->links() }}
+            </div>
+        @endif
 
         {{-- Create modal --}}
         <div x-show="createOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden" aria-labelledby="unit-create-title" role="dialog" aria-modal="true">
@@ -332,7 +382,7 @@
                                 </label>
                                 <select id="create-property-id" name="property_id" required class="block w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('property_id') border-rose-300 ring-1 ring-rose-200 @enderror">
                                     <option value="" disabled {{ old('_form') === 'create' ? '' : 'selected' }} hidden>Select property</option>
-                                    @foreach($properties as $property)
+                                    @foreach($allProperties as $property)
                                         <option value="{{ $property->id }}" @selected(old('_form') === 'create' && (string) old('property_id') === (string) $property->id)>{{ $property->name }}</option>
                                     @endforeach
                                 </select>
@@ -361,7 +411,13 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
                                     Unit Type <span class="text-rose-500">*</span>
                                 </label>
-                                <input id="create-unit-type" name="unit_type" type="text" value="{{ old('_form') === 'create' ? old('unit_type') : '' }}" placeholder="e.g. Studio, 1BR, 2BR, Room" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('unit_type') border-rose-300 ring-1 ring-rose-200 @enderror" />
+                                <select id="create-unit-type" name="unit_type" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('unit_type') border-rose-300 ring-1 ring-rose-200 @enderror">
+                                    <option value="" disabled {{ old('_form') === 'create' && old('unit_type') ? '' : 'selected' }}>Select unit type</option>
+                                    <option value="Studio" @selected(old('_form') === 'create' && old('unit_type') === 'Studio')>Studio</option>
+                                    <option value="1BR" @selected(old('_form') === 'create' && old('unit_type') === '1BR')>1BR</option>
+                                    <option value="2BR" @selected(old('_form') === 'create' && old('unit_type') === '2BR')>2BR</option>
+                                    <option value="3BR" @selected(old('_form') === 'create' && old('unit_type') === '3BR')>3BR</option>
+                                </select>
                                 @error('unit_type')
                                     <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
@@ -473,7 +529,13 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
                                     Unit Type <span class="text-rose-500">*</span>
                                 </label>
-                                <input id="edit-unit-type" name="unit_type" type="text" x-model="selectedUnit.unit_type" placeholder="e.g. Studio, 1BR, 2BR, Room" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('unit_type') border-rose-300 ring-1 ring-rose-200 @enderror" />
+                                <select id="edit-unit-type" name="unit_type" x-model="selectedUnit.unit_type" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('unit_type') border-rose-300 ring-1 ring-rose-200 @enderror">
+                                    <option value="">Select unit type</option>
+                                    <option value="Studio">Studio</option>
+                                    <option value="1BR">1BR</option>
+                                    <option value="2BR">2BR</option>
+                                    <option value="3BR">3BR</option>
+                                </select>
                                 @error('unit_type')
                                     <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>

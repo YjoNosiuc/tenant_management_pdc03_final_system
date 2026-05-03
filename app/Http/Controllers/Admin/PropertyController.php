@@ -17,13 +17,32 @@ use Illuminate\View\View;
 
 class PropertyController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $properties = Property::query()
+        $query = Property::query()
             ->where('owner_id', auth()->id())
             ->withCount('units')
-            ->orderBy('name')
-            ->paginate(10)
+            ->with(['images', 'units']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('barangay', 'like', "%{$search}%")
+                    ->orWhere('province', 'like', "%{$search}%");
+            });
+        }
+
+        match ($request->get('sort', 'name_asc')) {
+            'name_desc' => $query->orderBy('name', 'desc'),
+            'newest' => $query->orderBy('created_at', 'desc'),
+            'oldest' => $query->orderBy('created_at', 'asc'),
+            default => $query->orderBy('name', 'asc'),
+        };
+
+        $properties = $query
+            ->paginate(12)
             ->withQueryString();
 
         $totalProperties = Property::where('owner_id', auth()->id())->count();
@@ -48,7 +67,11 @@ class PropertyController extends Controller
         $property = Property::query()
             ->where('owner_id', auth()->id())
             ->whereKey($property->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $property) {
+            abort(403);
+        }
 
         $property->load([
             'images',
@@ -111,7 +134,11 @@ class PropertyController extends Controller
         $property = Property::query()
             ->where('owner_id', auth()->id())
             ->whereKey($property->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $property) {
+            abort(403);
+        }
 
         $request->validate([
             'images' => ['required', 'array', 'max:5'],
@@ -142,7 +169,11 @@ class PropertyController extends Controller
         $property = Property::query()
             ->where('owner_id', auth()->id())
             ->whereKey($property->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $property) {
+            abort(403);
+        }
 
         if ((int) $image->property_id !== (int) $property->id) {
             abort(404);
@@ -158,7 +189,11 @@ class PropertyController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'address' => ['required', 'string', 'max:500'],
+            'province' => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
+            'barangay' => ['required', 'string', 'max:255'],
+            'address_line1' => ['required', 'string', 'max:255'],
+            'address_line2' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
         ]);
 
@@ -180,7 +215,11 @@ class PropertyController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'address' => ['required', 'string', 'max:500'],
+            'province' => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
+            'barangay' => ['required', 'string', 'max:255'],
+            'address_line1' => ['required', 'string', 'max:255'],
+            'address_line2' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
         ]);
 

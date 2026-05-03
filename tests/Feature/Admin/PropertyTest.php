@@ -27,7 +27,11 @@ class PropertyTest extends TestCase
 
         $payload = [
             'name' => 'Harbor View Residences',
-            'address' => 'Rizal Avenue, Angeles City, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'Angeles City',
+            'barangay' => 'Cutcut',
+            'address_line1' => 'Rizal Avenue',
+            'address_line2' => null,
             'description' => 'Waterfront community with covered parking.',
         ];
 
@@ -38,7 +42,10 @@ class PropertyTest extends TestCase
         $response->assertRedirect(route('admin.properties.index'));
         $this->assertDatabaseHas('properties', [
             'name' => 'Harbor View Residences',
-            'address' => 'Rizal Avenue, Angeles City, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'Angeles City',
+            'barangay' => 'Cutcut',
+            'address_line1' => 'Rizal Avenue',
             'owner_id' => $admin->id,
         ]);
     }
@@ -50,13 +57,16 @@ class PropertyTest extends TestCase
         $response = $this->actingAs($admin)
             ->from(route('admin.properties.index'))
             ->post(route('admin.properties.store'), [
-                'address' => 'Clark Freeport Zone, Mabalacat, Pampanga',
+                'province' => 'Pampanga',
+                'city' => 'Mabalacat City',
+                'barangay' => 'Dolores',
+                'address_line1' => 'Clark Freeport Zone',
             ]);
 
         $response->assertSessionHasErrors('name');
     }
 
-    public function test_admin_cannot_create_property_with_missing_address(): void
+    public function test_admin_cannot_create_property_with_missing_address_fields(): void
     {
         $admin = $this->createAdmin();
 
@@ -66,7 +76,7 @@ class PropertyTest extends TestCase
                 'name' => 'Lakeside Condos',
             ]);
 
-        $response->assertSessionHasErrors('address');
+        $response->assertSessionHasErrors(['province', 'city', 'barangay', 'address_line1']);
     }
 
     public function test_admin_can_update_an_existing_property(): void
@@ -74,14 +84,21 @@ class PropertyTest extends TestCase
         $admin = $this->createAdmin();
         $property = $this->createProperty([
             'name' => 'Original Tower Name',
-            'address' => 'Original Street, City',
+            'province' => 'Pampanga',
+            'city' => 'Angeles City',
+            'barangay' => 'Pulungbulu',
+            'address_line1' => 'Original Street',
         ], $admin);
 
         $response = $this->actingAs($admin)
             ->from(route('admin.properties.index'))
             ->patch(route('admin.properties.update', $property), [
                 'name' => 'Renamed Tower',
-                'address' => 'Updated Avenue, San Fernando, Pampanga',
+                'province' => 'Pampanga',
+                'city' => 'City of San Fernando',
+                'barangay' => 'San Agustin',
+                'address_line1' => 'Updated Avenue',
+                'address_line2' => null,
                 'description' => 'Renovated lobby and upgraded elevators.',
             ]);
 
@@ -89,7 +106,10 @@ class PropertyTest extends TestCase
         $this->assertDatabaseHas('properties', [
             'id' => $property->id,
             'name' => 'Renamed Tower',
-            'address' => 'Updated Avenue, San Fernando, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'City of San Fernando',
+            'barangay' => 'San Agustin',
+            'address_line1' => 'Updated Avenue',
         ]);
     }
 
@@ -98,7 +118,10 @@ class PropertyTest extends TestCase
         $admin = $this->createAdmin();
         $property = $this->createProperty([
             'name' => 'Soft Delete QA Property',
-            'address' => '123 QA Street, Tarlac City, Tarlac',
+            'province' => 'Tarlac',
+            'city' => 'Tarlac City',
+            'barangay' => 'Poblacion',
+            'address_line1' => '123 QA Street',
         ], $admin);
 
         $response = $this->actingAs($admin)
@@ -116,7 +139,10 @@ class PropertyTest extends TestCase
         $admin = $this->createAdmin();
         $property = $this->createProperty([
             'name' => 'Hidden After Delete Plaza',
-            'address' => '456 Archive Road, Capas, Tarlac',
+            'province' => 'Tarlac',
+            'city' => 'Capas',
+            'barangay' => 'Poblacion',
+            'address_line1' => '456 Archive Road',
         ], $admin);
 
         $this->actingAs($admin)->delete(route('admin.properties.destroy', $property));

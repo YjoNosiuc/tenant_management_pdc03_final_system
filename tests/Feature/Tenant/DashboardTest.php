@@ -30,7 +30,7 @@ class DashboardTest extends TestCase
         ]);
         $unit = $this->createUnit($property->id, 'occupied', [
             'unit_number' => '8D',
-            'unit_type' => 'Loft',
+            'unit_type' => 'Studio',
         ]);
 
         $this->createLease($tenantUser->tenant->id, $unit->id, 'active', [

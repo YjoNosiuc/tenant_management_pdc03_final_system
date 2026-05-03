@@ -73,60 +73,9 @@ class DatabaseSeeder extends Seeder
                 'understood, and agree to all conditions stated above.',
         ]);
 
-        $propertyData = [
-            ['Sunshine Apartments', 'Brgy. Sto. Domingo, Angeles City, Pampanga', 'A well-maintained apartment complex near SM Clark with 24/7 security and CCTV surveillance.'],
-            ['Greenview Residences', 'Brgy. Dolores, Mabalacat, Pampanga', 'Affordable residential units in a quiet neighborhood perfect for young professionals and families.'],
-            ['Clark Heights', 'Brgy. Malabanias, Angeles City, Pampanga', 'Modern living spaces near Clark Freeport Zone with easy access to commercial areas.'],
-            ['Villa San Fernando', 'Brgy. Sindalan, San Fernando, Pampanga', 'Comfortable units in the heart of San Fernando city with nearby schools and markets.'],
-            ['Pampanga Garden Suites', 'Brgy. Telabastagan, San Fernando, Pampanga', 'Garden-themed residential complex with landscaped areas and covered parking.'],
-            ['Metro Angeles Flats', 'Brgy. Pulungbulu, Angeles City, Pampanga', 'Convenient urban living near transportation hubs and commercial centers.'],
-            ['Sunset View Residences', 'Brgy. Sapang Bato, Angeles City, Pampanga', 'Peaceful residential community with beautiful sunset views and cool breeze.'],
-            ['Clark Business Suites', 'Brgy. Balibago, Angeles City, Pampanga', 'Perfect for business travelers and professionals working in the Clark area.'],
-            ['Pampanga Homes', 'Brgy. Del Pilar, San Fernando, Pampanga', 'Family-friendly residential complex with playground and community area.'],
-            ['Angeles Garden Villas', 'Brgy. Lourdes Sur, Angeles City, Pampanga', 'Premium garden villas with spacious units and well-maintained surroundings.'],
-            ['SM Clark Residences', 'Brgy. Ninoy Aquino, Angeles City, Pampanga', 'Walking distance to SM Clark and other major commercial establishments.'],
-            ['Mabalacat Suites', 'Brgy. Poblacion, Mabalacat, Pampanga', 'Centrally located suites in Mabalacat with easy access to NLEX and main roads.'],
-            ['Pampanga Heritage Homes', 'Brgy. San Nicolas, San Fernando, Pampanga', 'Heritage-inspired residential complex with modern amenities and facilities.'],
-            ['Clark Investors Hub', 'Brgy. Margot, Angeles City, Pampanga', 'Investor-grade units with high rental yield potential near Clark economic zone.'],
-            ['Holy Family Residences', 'Brgy. Holy Family, Angeles City, Pampanga', 'Peaceful and secure residential complex near Holy Family Parish Church.'],
-            ['Nepo Quad Apartments', 'Brgy. Pulung Maragul, Angeles City, Pampanga', 'Modern apartments near Nepo Mall and Robinsons Starmills Pampanga.'],
-            ['Diamond Residences', 'Brgy. Cutcut, Angeles City, Pampanga', 'Premium residential units with diamond-class amenities and 24/7 security.'],
-            ['Friendship Village', 'Brgy. Friendship, Angeles City, Pampanga', 'Well-established residential community with complete utilities and facilities.'],
-            ['Pampanga Central Flats', 'Brgy. San Jose, San Fernando, Pampanga', 'Centrally located flats with easy access to government offices and commercial areas.'],
-            ['Angeles Heights', 'Brgy. Anunas, Angeles City, Pampanga', 'Elevated residential complex with panoramic views and cool mountain breeze.'],
-            ['Starmills Residences', 'Brgy. San Isidro, San Fernando, Pampanga', 'Modern living near Robinsons Starmills and other major shopping centers.'],
-            ['Clark Green City Homes', 'Brgy. Capaya, Angeles City, Pampanga', 'Eco-friendly residential complex with green spaces and sustainable facilities.'],
-            ['Apalit River View', 'Brgy. San Vicente, Apalit, Pampanga', 'Scenic river view units perfect for nature lovers and peaceful living.'],
-            ['Guagua Modern Flats', 'Brgy. Poblacion, Guagua, Pampanga', 'Modern residential flats in the historic town of Guagua with complete amenities.'],
-            ['Bacolor Heritage Suites', 'Brgy. San Pablo, Bacolor, Pampanga', 'Heritage-inspired suites in the historic town of Bacolor, Pampanga.'],
-            ['Floridablanca Garden Homes', 'Brgy. Poblacion, Floridablanca, Pampanga', 'Garden homes in the peaceful town of Floridablanca with fresh air and nature.'],
-            ['Porac Mountain View', 'Brgy. Poblacion, Porac, Pampanga', 'Mountain view residential units in Porac with cool climate and fresh environment.'],
-            ['Lubao Riverside Homes', 'Brgy. San Antonio, Lubao, Pampanga', 'Riverside residential homes in Lubao with scenic views and peaceful ambiance.'],
-            ['Sasmuan Coastal Living', 'Brgy. Malusac, Sasmuan, Pampanga', 'Unique coastal living experience near Sasmuan Coastal Wetlands.'],
-            ['Mexico Town Residences', 'Brgy. Poblacion, Mexico, Pampanga', 'Affordable residential units in the progressive town of Mexico, Pampanga.'],
-            ['Magalang Hillside Homes', 'Brgy. Camias, Magalang, Pampanga', 'Hillside homes in Magalang with cool climate and scenic mountain views.'],
-            ['Candaba Wetlands Villas', 'Brgy. Poblacion, Candaba, Pampanga', 'Unique villas near Candaba Wetlands, perfect for nature enthusiasts.'],
-            ['Sta. Ana Modern Suites', 'Brgy. Poblacion, Sta. Ana, Pampanga', 'Modern suites in the quiet town of Sta. Ana with complete basic amenities.'],
-            ['Masantol Waterfront Homes', 'Brgy. Sagrada Familia, Masantol, Pampanga', 'Waterfront residential homes in Masantol with beautiful river views.'],
-            ['Macabebe Riverside Flats', 'Brgy. Poblacion, Macabebe, Pampanga', 'Affordable riverside flats in Macabebe with easy access to main roads.'],
-            ['Minalin Peaceful Homes', 'Brgy. Poblacion, Minalin, Pampanga', 'Peaceful residential homes in the quiet town of Minalin, Pampanga.'],
-            ['Sto. Tomas Garden Units', 'Brgy. Poblacion, Sto. Tomas, Pampanga', 'Garden units in the progressive municipality of Sto. Tomas, Pampanga.'],
-            ['San Luis Valley Homes', 'Brgy. Poblacion, San Luis, Pampanga', 'Valley view homes in San Luis with fresh air and peaceful environment.'],
-            ['San Simon Riverside', 'Brgy. Poblacion, San Simon, Pampanga', 'Riverside residential units in San Simon with scenic views and cool breeze.'],
-            ['Sta. Rita Modern Flats', 'Brgy. Poblacion, Sta. Rita, Pampanga', 'Modern residential flats in Sta. Rita with complete utilities and amenities.'],
-            ['Betis Heritage Homes', 'Brgy. Betis, Guagua, Pampanga', 'Heritage-inspired homes in the historic barangay of Betis, Guagua.'],
-            ['Del Carmen Suites', 'Brgy. Del Carmen, San Fernando, Pampanga', 'Modern suites in Del Carmen with easy access to SM Pampanga and NLEX.'],
-            ['Dolores Residential Park', 'Brgy. Dolores, San Fernando, Pampanga', 'Residential park with green spaces and family-friendly environment.'],
-            ['San Agustin Modern Homes', 'Brgy. San Agustin, San Fernando, Pampanga', 'Modern homes in San Agustin with complete amenities and 24/7 security.'],
-            ['San Felipe Garden Villas', 'Brgy. San Felipe, San Fernando, Pampanga', 'Garden villas in San Felipe with landscaped surroundings and parking.'],
-            ['San Juan Residential Hub', 'Brgy. San Juan, San Fernando, Pampanga', 'Residential hub in San Juan strategically located near commercial areas.'],
-            ['San Pedro Valley Homes', 'Brgy. San Pedro, San Fernando, Pampanga', 'Valley homes in San Pedro with mountain views and cool climate.'],
-            ['Santiago Premium Suites', 'Brgy. Santiago, San Fernando, Pampanga', 'Premium suites in Santiago with high-end finishes and modern amenities.'],
-            ['Quebiawan Modern Flats', 'Brgy. Quebiawan, San Fernando, Pampanga', 'Modern flats in Quebiawan near Robinsons Starmills and main commercial areas.'],
-            ['Sindalan Garden Residences', 'Brgy. Sindalan, San Fernando, Pampanga', 'Garden residences in Sindalan with lush greenery and peaceful environment.'],
-        ];
+        $propertyData = require __DIR__.'/property_seed_data.php';
 
-        $unitTypes = ['Studio', '1BR', '2BR', 'Room', 'Studio', '1BR'];
+        $unitTypes = ['Studio', '1BR', '2BR', '3BR'];
         $rentPrices = [4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 10000, 12000, 15000];
         $lateFeeValues = [3, 4, 5, 6, 7, 8, 10];
 
@@ -135,8 +84,12 @@ class DatabaseSeeder extends Seeder
             $properties[] = Property::create([
                 'owner_id' => $owner->id,
                 'name' => $data[0],
-                'address' => $data[1],
-                'description' => $data[2],
+                'province' => $data[1],
+                'city' => $data[2],
+                'barangay' => $data[3],
+                'address_line1' => $data[4],
+                'address_line2' => null,
+                'description' => $data[5],
                 'late_fee_type' => 'percentage',
                 'late_fee_value' => $lateFeeValues[$index % count($lateFeeValues)],
             ]);
@@ -175,6 +128,9 @@ class DatabaseSeeder extends Seeder
 
         $tenantModels = [];
 
+        $tenantCities = collect(['Angeles City', 'Mabalacat City', 'City of San Fernando', 'Porac', 'Mexico']);
+        $tenantBarangays = collect(['Poblacion', 'Sto. Domingo', 'Dolores', 'Balibago', 'Sindalan', 'Malabanias', 'Cutcut', 'Friendship']);
+
         foreach ($tenantNames as $i => $name) {
             $email = 'tenant'.($i + 1).'@renttrack.com';
             $user = User::create([
@@ -191,7 +147,11 @@ class DatabaseSeeder extends Seeder
                 'phone_number' => '09'.rand(100000000, 999999999),
                 'emergency_contact_name' => 'Emergency Contact '.($i + 1),
                 'emergency_contact_number' => '09'.rand(100000000, 999999999),
-                'address' => 'Brgy. Sample, Angeles City, Pampanga',
+                'province' => 'Pampanga',
+                'city' => $tenantCities->random(),
+                'barangay' => $tenantBarangays->random(),
+                'address_line1' => ($i + 1).' Sample Street',
+                'address_line2' => null,
             ]);
         }
 

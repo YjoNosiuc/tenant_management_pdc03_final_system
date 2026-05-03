@@ -14,11 +14,28 @@ class Property extends Model
     protected $fillable = [
         'owner_id',
         'name',
-        'address',
+        'province',
+        'city',
+        'barangay',
+        'address_line1',
+        'address_line2',
         'description',
         'late_fee_type',
         'late_fee_value',
     ];
+
+    public function getFullAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->address_line1,
+            $this->address_line2,
+            $this->barangay,
+            $this->city,
+            $this->province,
+        ]);
+
+        return implode(', ', $parts);
+    }
 
     public function owner(): BelongsTo
     {

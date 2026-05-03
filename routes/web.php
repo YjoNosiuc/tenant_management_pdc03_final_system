@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\LeaseController as AdminLeaseController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Admin\PropertyController as AdminPropertyController;
+use App\Http\Controllers\Admin\ReportsController as AdminReportsController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Admin\UnitController as AdminUnitController;
@@ -62,6 +63,14 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('leases', AdminLeaseController::class)->except(['create', 'edit']);
         Route::post('/leases/{lease}/contract', [AdminLeaseController::class, 'uploadContract'])
             ->name('leases.contract.upload');
+        Route::get('/leases/{lease}/pdf', [AdminLeaseController::class, 'downloadPdf'])
+            ->name('leases.pdf');
+        Route::get('/reports', [AdminReportsController::class, 'index'])
+            ->name('reports.index');
+        Route::get('/reports/export/pdf', [AdminReportsController::class, 'exportPdf'])
+            ->name('reports.export.pdf');
+        Route::get('/reports/export/excel', [AdminReportsController::class, 'exportExcel'])
+            ->name('reports.export.excel');
         Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
         Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
         Route::patch('/payments/{payment}/verify', [AdminPaymentController::class, 'verify'])->name('payments.verify');

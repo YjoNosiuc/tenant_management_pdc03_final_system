@@ -15,15 +15,7 @@
             deleteOpen: false,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
             selectedLease: { id: null, tenant_id: '', unit_id: '', start_date: '', end_date: '', monthly_rent: '', deposit_amount: '', deposit_status: 'held', status: 'active', notes: '', inclusions: [] },
-            deleteLease: { id: null, tenant_name: '' },
-            search: '',
-            filterStatus: '',
-            rowMatches(tenantName, unitNumber, status) {
-                if (this.filterStatus && status !== this.filterStatus) return false;
-                const s = this.search.trim().toLowerCase();
-                if (!s) return true;
-                return (tenantName || '').toLowerCase().includes(s) || (unitNumber || '').toLowerCase().includes(s);
-            }
+            deleteLease: { id: null, tenant_name: '' }
         }"
         x-init="
             @if(session()->has('success') || session()->has('error'))
@@ -130,39 +122,155 @@
         </div>
 
         <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-900">All leases</h2>
-                    <p class="mt-1 text-sm text-slate-500">Filter by status and search by tenant or unit</p>
-                </div>
-                <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto lg:min-w-[28rem]">
-                    <div class="w-full sm:max-w-[11rem]">
-                        <label for="lease-status-filter" class="sr-only">Filter by status</label>
+            <div class="mb-6">
+                <h2 class="text-base font-semibold text-slate-900">All leases</h2>
+                <p class="mt-1 text-sm text-slate-500">Filter by property, unit, status, or search by tenant or unit. All filters apply on the server.</p>
+            </div>
+
+            <form method="GET" action="{{ route('admin.leases.index') }}">
+                <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+                    {{-- Property Filter --}}
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400" for="lease-filter-property_id">
+                            Property
+                        </label>
                         <select
-                            id="lease-status-filter"
-                            x-model="filterStatus"
+                            id="lease-filter-property_id"
+                            name="property_id"
+                            onchange="const f=this.form; const u=f.querySelector('select[name=\'unit_id\']'); if(u) u.value=''; f.submit();"
                             class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         >
-                            <option value="">All statuses</option>
-                            <option value="active">Active</option>
-                            <option value="completed">Completed</option>
-                            <option value="terminated">Terminated</option>
+                            <option value="">All Properties</option>
+                            @foreach($properties as $property)
+                                <option value="{{ $property->id }}" {{ request('property_id') == $property->id ? 'selected' : '' }}>
+                                    {{ $property->name }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
-                    <div class="relative w-full flex-1">
-                        <label for="lease-search" class="sr-only">Search leases</label>
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <svg class="h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+
+                    {{-- Unit Filter --}}
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400" for="lease-filter-unit_id">
+                            Unit
+                        </label>
+                        <select
+                            id="lease-filter-unit_id"
+                            name="unit_id"
+                            onchange="this.form.submit()"
+                            class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 {{ ! request('property_id') ? 'opacity-50 cursor-not-allowed' : '' }}"
+                            {{ ! request('property_id') ? 'disabled' : '' }}
+                        >
+                            <option value="">All Units</option>
+                            @foreach($units as $unit)
+                                <option value="{{ $unit->id }}" {{ request('unit_id') == $unit->id ? 'selected' : '' }}>
+                                    Unit {{ $unit->unit_number }} ({{ $unit->unit_type }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @if(! request('property_id'))
+                            <p class="mt-1 text-xs text-slate-400">Select a property first</p>
+                        @endif
+                    </div>
+
+                    {{-- Status Filter --}}
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400" for="lease-filter-status">
+                            Status
+                        </label>
+                        <select
+                            id="lease-filter-status"
+                            name="status"
+                            onchange="this.form.submit()"
+                            class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                            <option value="">All Statuses</option>
+                            <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                            <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+                            <option value="terminated" {{ request('status') === 'terminated' ? 'selected' : '' }}>Terminated</option>
+                        </select>
+                    </div>
+
+                    {{-- Search --}}
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400" for="lease-filter-search">
+                            Search
+                        </label>
+                        <div class="relative">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4 text-slate-400" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                </svg>
+                            </div>
+                            <input
+                                id="lease-filter-search"
+                                type="text"
+                                name="search"
+                                value="{{ request('search') }}"
+                                placeholder="Tenant name or unit..."
+                                class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
                         </div>
-                        <input
-                            id="lease-search"
-                            type="search"
-                            x-model="search"
-                            placeholder="Tenant name or unit number…"
-                            class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition-all duration-150 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-md"
-                        />
                     </div>
                 </div>
+
+                @if(request()->filled('status') || request()->filled('property_id') || request()->filled('unit_id') || request()->filled('search'))
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Active filters:
+                        </span>
+
+                        @if(request('property_id'))
+                            <span class="inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                Property: {{ $properties->firstWhere('id', request('property_id'))?->name }}
+                            </span>
+                        @endif
+
+                        @if(request('unit_id'))
+                            <span class="inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                Unit: {{ $units->firstWhere('id', request('unit_id'))?->unit_number }}
+                            </span>
+                        @endif
+
+                        @if(request('status'))
+                            <span class="inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                Status: {{ ucfirst(request('status')) }}
+                            </span>
+                        @endif
+
+                        @if(request('search'))
+                            <span class="inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                Search: "{{ request('search') }}"
+                            </span>
+                        @endif
+
+                        <a
+                            href="{{ route('admin.leases.index') }}"
+                            class="inline-flex items-center gap-1 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600 transition-all hover:bg-rose-100"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                            Clear all
+                        </a>
+                    </div>
+                @endif
+            </form>
+
+            <div class="mb-3 flex items-center justify-between">
+                <p class="text-sm text-slate-500">
+                    Showing
+                    <span class="font-semibold text-slate-700">{{ $leases->firstItem() ?? 0 }}</span>
+                    to
+                    <span class="font-semibold text-slate-700">{{ $leases->lastItem() ?? 0 }}</span>
+                    of
+                    <span class="font-semibold text-slate-700">{{ $leases->total() }}</span>
+                    results
+                    @if(request()->filled('status') || request()->filled('property_id') || request()->filled('unit_id') || request()->filled('search'))
+                        <span class="font-medium text-indigo-600">(filtered)</span>
+                    @endif
+                </p>
             </div>
 
             @if($leases->isEmpty())
@@ -204,10 +312,7 @@
                                             ? str($unit->unit_type)->replace('_', ' ')->title()->toString()
                                             : '';
                                     @endphp
-                                    <tr
-                                        class="transition-colors duration-150 hover:bg-indigo-50/30"
-                                        x-show="rowMatches(@js($tenantName), @js($unitNo), @js($lease->status))"
-                                    >
+                                    <tr class="transition-colors duration-150 hover:bg-indigo-50/30">
                                         <td class="min-w-0 px-4 py-3.5 align-top">
                                             <div class="flex items-center gap-3">
                                                 <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">{{ $tenantInitials }}</div>
@@ -350,7 +455,7 @@
                                 </label>
                                 <select id="create-tenant" name="tenant_id" required class="block w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('tenant_id') border-rose-300 ring-1 ring-rose-200 @enderror">
                                     <option value="" disabled {{ old('_form') === 'create' && old('tenant_id') ? '' : 'selected' }}>Select tenant</option>
-                                    @foreach($tenants as $tenant)
+                                    @foreach($allTenants as $tenant)
                                         <option value="{{ $tenant->id }}" @selected(old('_form') === 'create' && (string) old('tenant_id') === (string) $tenant->id)>{{ $tenant->user?->name ?? 'Tenant #'.$tenant->id }}</option>
                                     @endforeach
                                 </select>
@@ -368,7 +473,7 @@
                                 </label>
                                 <select id="create-unit" name="unit_id" required class="block w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('unit_id') border-rose-300 ring-1 ring-rose-200 @enderror">
                                     <option value="" disabled {{ old('_form') === 'create' && old('unit_id') ? '' : 'selected' }}>Select vacant unit</option>
-                                    @foreach($units as $unit)
+                                    @foreach($allVacantUnits as $unit)
                                         <option value="{{ $unit->id }}" @selected(old('_form') === 'create' && (string) old('unit_id') === (string) $unit->id)>{{ $unit->unit_number }} — {{ $unit->property?->name ?? 'Property' }}</option>
                                     @endforeach
                                 </select>

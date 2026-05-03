@@ -1,4 +1,5 @@
 import './bootstrap';
+import './psgc-address';
 
 import Alpine from 'alpinejs';
 

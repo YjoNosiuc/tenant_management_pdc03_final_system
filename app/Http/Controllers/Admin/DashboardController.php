@@ -73,6 +73,36 @@ class DashboardController extends Controller
             ->whereBetween('created_at', [$startLastMonth, $endLastMonth])
             ->count();
 
+        $monthlyIncomeLabels = [];
+        $monthlyIncomeData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now('Asia/Manila')->subMonths($i);
+            $monthlyIncomeLabels[] = $month->format('M Y');
+            $monthlyIncomeData[] = (float) Payment::whereHas('lease.unit.property',
+                fn ($q) => $q->where('owner_id', auth()->id())
+            )
+                ->where('status', 'paid')
+                ->whereYear('payment_date', $month->year)
+                ->whereMonth('payment_date', $month->month)
+                ->sum('total_amount_due');
+        }
+
+        $paymentStatusData = [];
+        foreach (['pending', 'verifying', 'paid', 'late', 'rejected'] as $status) {
+            $paymentStatusData[] = Payment::whereHas('lease.unit.property',
+                fn ($q) => $q->where('owner_id', auth()->id())
+            )->where('status', $status)->count();
+        }
+
+        $paymentStatusCounts = [
+            'pending' => $paymentStatusData[0],
+            'verifying' => $paymentStatusData[1],
+            'paid' => $paymentStatusData[2],
+            'late' => $paymentStatusData[3],
+            'rejected' => $paymentStatusData[4],
+        ];
+        $totalPaymentsCount = array_sum($paymentStatusData);
+
         return view('admin.dashboard', [
             'title' => 'Dashboard',
             'totalProperties' => $totalProperties,
@@ -88,6 +118,11 @@ class DashboardController extends Controller
             'leasesTrend' => $this->monthTrendLabel($leasesThisMonth, $leasesLastMonth, 'leases'),
             'paymentsTrend' => $this->monthTrendLabel($paymentsThisMonth, $paymentsLastMonth, 'payments'),
             'unreadNotificationCount' => $this->unreadNotificationCount(),
+            'monthlyIncomeLabels' => $monthlyIncomeLabels,
+            'monthlyIncomeData' => $monthlyIncomeData,
+            'paymentStatusData' => $paymentStatusData,
+            'paymentStatusCounts' => $paymentStatusCounts,
+            'totalPaymentsCount' => $totalPaymentsCount,
         ]);
     }
 

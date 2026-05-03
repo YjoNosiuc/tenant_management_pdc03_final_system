@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>RentTrack Report</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #1e293b; background: white; }
+        .header { background: #4F46E5; color: white; padding: 24px 32px; margin-bottom: 24px; }
+        .header h1 { font-size: 20px; font-weight: bold; }
+        .header p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+        .header .meta { margin-top: 12px; font-size: 11px; opacity: 0.7; }
+        .section { margin: 0 32px 24px; }
+        .section-title { font-size: 13px; font-weight: bold; color: #4F46E5; border-bottom: 2px solid #4F46E5; padding-bottom: 6px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        th { background: #4F46E5; color: white; padding: 8px 10px; text-align: left; font-size: 10px; font-weight: bold; }
+        td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; font-size: 10px; }
+        tr:nth-child(even) td { background: #f8faff; }
+        .total-row td { font-weight: bold; background: #eef2ff; color: #4F46E5; border-top: 2px solid #4F46E5; }
+        .footer { margin: 32px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; }
+        .page-break { page-break-after: always; }
+        .summary-grid { display: table; width: 100%; margin-bottom: 16px; border-spacing: 8px 0; }
+        .summary-card { display: table-cell; padding: 12px 16px; background: #f8faff; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center; width: 25%; }
+        .summary-card .value { font-size: 18px; font-weight: bold; color: #4F46E5; }
+        .summary-card .label { font-size: 10px; color: #64748b; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>RentTrack Financial Report</h1>
+    <p>{{ $owner->name }}</p>
+    <div class="meta">
+        Period: {{ $startDate->format('M d, Y') }} — {{ $endDate->format('M d, Y') }} &nbsp;|&nbsp;
+        Generated: {{ now('Asia/Manila')->format('M d, Y h:i A') }}
+    </div>
+</div>
+
+<div class="section">
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="value">₱{{ number_format($totalCollected, 0) }}</div>
+            <div class="label">Total Collected</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">{{ $totalUnits }}</div>
+            <div class="label">Total Units</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">{{ $occupancyRate }}%</div>
+            <div class="label">Occupancy Rate</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">{{ $latePayments->count() }}</div>
+            <div class="label">Late Payments</div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-title">Monthly Rent Collected</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Month</th>
+                <th style="text-align:right">Amount Collected (₱)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($monthlyIncome as $row)
+                <tr>
+                    <td>{{ $row['month'] }}</td>
+                    <td style="text-align:right">₱{{ number_format($row['amount'], 2) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td>TOTAL</td>
+                <td style="text-align:right">₱{{ number_format($totalCollected, 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="section page-break">
+    <div class="section-title">Income by Property</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Property</th>
+                <th>City</th>
+                <th style="text-align:center">Units</th>
+                <th style="text-align:center">Occupied</th>
+                <th style="text-align:center">Occupancy</th>
+                <th style="text-align:right">Collected (₱)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($propertyBreakdown as $row)
+                <tr>
+                    <td>{{ $row['name'] }}</td>
+                    <td>{{ $row['city'] }}</td>
+                    <td style="text-align:center">{{ $row['total_units'] }}</td>
+                    <td style="text-align:center">{{ $row['occupied_units'] }}</td>
+                    <td style="text-align:center">{{ $row['occupancy_rate'] }}%</td>
+                    <td style="text-align:right">₱{{ number_format($row['total_collected'], 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+
+<div class="section">
+    <div class="section-title">
+        Late Payments — Total Fees: ₱{{ number_format($totalLateFees, 2) }}
+    </div>
+    @if($latePayments->count() > 0)
+        <table>
+            <thead>
+                <tr>
+                    <th>Tenant</th>
+                    <th>Property</th>
+                    <th>Unit</th>
+                    <th>Due Date</th>
+                    <th style="text-align:right">Rent (₱)</th>
+                    <th style="text-align:right">Late Fee (₱)</th>
+                    <th style="text-align:right">Total (₱)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($latePayments as $payment)
+                    <tr>
+                        <td>{{ $payment->lease?->tenant?->user?->name ?? '—' }}</td>
+                        <td>{{ $payment->lease?->unit?->property?->name ?? '—' }}</td>
+                        <td>Unit {{ $payment->lease?->unit?->unit_number ?? '—' }}</td>
+                        <td>{{ $payment->due_date?->format('M d, Y') }}</td>
+                        <td style="text-align:right">₱{{ number_format((float) $payment->amount_paid, 2) }}</td>
+                        <td style="text-align:right">₱{{ number_format((float) $payment->late_fee_amount, 2) }}</td>
+                        <td style="text-align:right">₱{{ number_format((float) $payment->total_amount_due, 2) }}</td>
+                    </tr>
+                @endforeach
+                <tr class="total-row">
+                    <td colspan="5">TOTAL</td>
+                    <td style="text-align:right">₱{{ number_format($totalLateFees, 2) }}</td>
+                    <td style="text-align:right">₱{{ number_format($totalLateAmount, 2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    @else
+        <p style="color:#64748b; font-style:italic; padding: 16px 0;">No late payments in this period.</p>
+    @endif
+</div>
+
+<div class="footer">
+    <span>RentTrack — Property Management System</span>
+    <span>Generated by {{ $owner->name }} on {{ now('Asia/Manila')->format('M d, Y') }}</span>
+</div>
+
+</body>
+</html>

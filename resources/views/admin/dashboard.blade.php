@@ -227,5 +227,145 @@
                 </div>
             </div>
         </div>
+
+        <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-base font-semibold text-slate-900">Monthly Income</h2>
+                    <p class="text-sm text-slate-400 mt-0.5">Rent collected over the last 6 months</p>
+                </div>
+                <div class="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-1.5">
+                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+                    <span class="text-xs font-semibold text-indigo-700">Verified Payments</span>
+                </div>
+            </div>
+            <div class="relative h-64">
+                <canvas id="monthlyIncomeChart"></canvas>
+            </div>
+        </div>
+
+        <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-4">
+            <div class="mb-6">
+                <h2 class="text-base font-semibold text-slate-900">Payment Status</h2>
+                <p class="text-sm text-slate-400 mt-0.5">Current distribution across all payments</p>
+            </div>
+            <div class="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
+                <div class="relative h-48 max-w-xs mx-auto lg:mx-0">
+                    <canvas id="paymentStatusChart"></canvas>
+                </div>
+                <ul class="space-y-3">
+                    @php
+                        $statusMeta = [
+                            ['key' => 'pending', 'label' => 'Pending', 'dot' => 'bg-amber-500'],
+                            ['key' => 'verifying', 'label' => 'Verifying', 'dot' => 'bg-indigo-500'],
+                            ['key' => 'paid', 'label' => 'Paid', 'dot' => 'bg-emerald-500'],
+                            ['key' => 'late', 'label' => 'Late', 'dot' => 'bg-rose-500'],
+                            ['key' => 'rejected', 'label' => 'Rejected', 'dot' => 'bg-red-900'],
+                        ];
+                    @endphp
+                    @foreach($statusMeta as $meta)
+                        @php
+                            $c = $paymentStatusCounts[$meta['key']] ?? 0;
+                            $pct = $totalPaymentsCount > 0 ? round(($c / $totalPaymentsCount) * 100, 1) : 0;
+                        @endphp
+                        <li class="flex items-center justify-between gap-3 text-sm">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $meta['dot'] }}"></span>
+                                <span class="font-medium text-slate-700 truncate">{{ $meta['label'] }}</span>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="font-semibold text-slate-900">{{ number_format($c) }}</span>
+                                <span class="text-slate-400 ml-2">{{ $pct }}%</span>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
     </div>
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const monthlyIncomeCtx = document.getElementById('monthlyIncomeChart');
+if (monthlyIncomeCtx) {
+    new Chart(monthlyIncomeCtx, {
+        type: 'bar',
+        data: {
+            labels: {!! json_encode($monthlyIncomeLabels) !!},
+            datasets: [{
+                label: 'Income (₱)',
+                data: {!! json_encode($monthlyIncomeData) !!},
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => '₱' + ctx.parsed.y.toLocaleString('en-PH', {minimumFractionDigits: 2})
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.04)' },
+                    ticks: {
+                        callback: (val) => '₱' + (val/1000).toFixed(0) + 'k',
+                        font: { size: 11 }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                }
+            }
+        }
+    });
+}
+
+const paymentStatusCtx = document.getElementById('paymentStatusChart');
+if (paymentStatusCtx) {
+    new Chart(paymentStatusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'Verifying', 'Paid', 'Late', 'Rejected'],
+            datasets: [{
+                data: {!! json_encode($paymentStatusData) !!},
+                backgroundColor: [
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(127, 29, 29, 0.8)',
+                ],
+                borderWidth: 0,
+                hoverOffset: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ctx.label + ': ' + ctx.raw + ' payments'
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+@endpush

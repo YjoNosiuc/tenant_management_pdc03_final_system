@@ -4,56 +4,128 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lease;
+use App\Models\Property;
 use App\Models\Tenant;
 use App\Models\Unit;
 use App\Services\LeasePaymentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class LeaseController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View|RedirectResponse
     {
-        $leases = Lease::query()
-            ->whereHas('unit.property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->with(['tenant.user', 'unit.property'])
-            ->orderByDesc('start_date')
-            ->paginate(10)
-            ->withQueryString();
+        $ownerId = (int) auth()->id();
 
-        $tenants = $this->tenantsForSelect();
-        $units = $this->vacantUnitsForSelect();
-        $unitsForEdit = $this->unitsForEditSelect();
+        $properties = Property::query()
+            ->where('owner_id', $ownerId)
+            ->orderBy('name')
+            ->get();
 
-        $activeLeases = Lease::query()
-            ->whereHas('unit.property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->where('status', 'active')
-            ->count();
-        $completedLeases = Lease::query()
-            ->whereHas('unit.property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->where('status', 'completed')
-            ->count();
-        $terminatedLeases = Lease::query()
-            ->whereHas('unit.property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->where('status', 'terminated')
-            ->count();
+        $propertyId = $request->filled('property_id') ? (int) $request->property_id : null;
+        if ($propertyId && ! $properties->contains('id', $propertyId)) {
+            return redirect()->route('admin.leases.index', $request->except(['property_id', 'unit_id']));
+        }
+
+        $units = collect();
+        if ($propertyId) {
+            $units = Unit::query()
+                ->where('property_id', $propertyId)
+                ->whereHas('property', fn ($q) => $q->where('owner_id', $ownerId))
+                ->orderBy('unit_number')
+                ->get();
+        }
+
+        $unitId = $request->filled('unit_id') ? (int) $request->unit_id : null;
+        if ($unitId) {
+            $unitQuery = Unit::query()
+                ->whereKey($unitId)
+                ->whereHas('property', fn ($q) => $q->where('owner_id', $ownerId));
+            if ($propertyId) {
+                $unitQuery->where('property_id', $propertyId);
+            }
+            if (! $unitQuery->exists()) {
+                return redirect()->route('admin.leases.index', $request->except('unit_id'));
+            }
+        }
+
+        $status = $request->query('status');
+        $status = is_string($status) && $status !== '' ? $status : null;
+        if ($status !== null && ! in_array($status, ['active', 'completed', 'terminated'], true)) {
+            return redirect()->route('admin.leases.index', $request->except('status'));
+        }
+
+        $searchRaw = $request->query('search');
+        $search = is_string($searchRaw) ? mb_substr(trim($searchRaw), 0, 255) : '';
+
+        $query = Lease::query()
+            ->whereHas('unit.property', fn ($q) => $q->where('owner_id', $ownerId))
+            ->with(['tenant.user', 'unit.property']);
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($propertyId) {
+            $query->whereHas('unit', fn ($q) => $q->where('property_id', $propertyId));
+        }
+
+        if ($unitId) {
+            $query->where('unit_id', $unitId);
+        }
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%\\_').'%';
+            $query->where(function ($q) use ($like) {
+                $q->whereHas('tenant.user', fn ($q) => $q->where('name', 'like', $like))
+                    ->orWhereHas('unit', fn ($q) => $q->where('unit_number', 'like', $like));
+            });
+        }
+
+        $query->orderByDesc('created_at');
+
+        $leases = $query->paginate(10)->withQueryString();
+
+        $baseQuery = Lease::query()->whereHas('unit.property', fn ($q) => $q->where('owner_id', $ownerId));
+
+        $activeLeases = (clone $baseQuery)->where('status', 'active')->count();
+        $completedLeases = (clone $baseQuery)->where('status', 'completed')->count();
+        $terminatedLeases = (clone $baseQuery)->where('status', 'terminated')->count();
+
+        $allTenants = Tenant::query()
+            ->where('owner_id', $ownerId)
+            ->with('user')
+            ->get();
+
+        $allVacantUnits = Unit::query()
+            ->whereHas('property', fn ($q) => $q->where('owner_id', $ownerId))
+            ->where('status', 'vacant')
+            ->with('property')
+            ->orderBy('property_id')
+            ->orderBy('unit_number')
+            ->get();
 
         return view('admin.leases.index', [
             'title' => 'Leases',
             'leases' => $leases,
-            'tenants' => $tenants,
+            'properties' => $properties,
             'units' => $units,
-            'unitsForEdit' => $unitsForEdit,
             'activeLeases' => $activeLeases,
             'completedLeases' => $completedLeases,
             'terminatedLeases' => $terminatedLeases,
+            'allTenants' => $allTenants,
+            'allVacantUnits' => $allVacantUnits,
+            'tenants' => $this->tenantsForSelect(),
+            'unitsForEdit' => $this->unitsForEditSelect(),
             'unreadNotificationCount' => $this->unreadNotificationCount(),
         ]);
     }
@@ -174,6 +246,22 @@ class LeaseController extends Controller
         ]);
 
         return back()->with('success', 'Contract uploaded successfully.');
+    }
+
+    public function downloadPdf(Lease $lease)
+    {
+        $lease = $this->ownedLeaseOrAbort($lease);
+
+        $lease->load(['tenant.user', 'unit.property']);
+        $owner = auth()->user();
+
+        $pdf = Pdf::loadView('admin.leases.pdf', compact('lease', 'owner'))
+            ->setPaper('a4', 'portrait');
+
+        $slug = Str::slug($lease->tenant?->user?->name ?? 'tenant', '-');
+        $unitNo = $lease->unit?->unit_number ?? 'unit';
+
+        return $pdf->download('lease-contract-'.$slug.'-unit'.$unitNo.'.pdf');
     }
 
     /**

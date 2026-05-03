@@ -15,7 +15,7 @@
             editOpen: false,
             deleteOpen: false,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
-            selectedTenant: { id: null, user_id: null, name: '', email: '', phone_number: '', emergency_contact_name: '', emergency_contact_number: '', address: '' },
+            selectedTenant: { id: null, user_id: null, name: '', email: '', phone_number: '', emergency_contact_name: '', emergency_contact_number: '', province: '', city: '', barangay: '', address_line1: '', address_line2: '' },
             deleteTenant: { id: null, name: '' },
             matches(name, email) {
                 const s = this.q.trim().toLowerCase();
@@ -40,7 +40,11 @@
                     phone_number: @js(old('phone_number', '')),
                     emergency_contact_name: @js(old('emergency_contact_name', '')),
                     emergency_contact_number: @js(old('emergency_contact_number', '')),
-                    address: @js(old('address', ''))
+                    province: @js(old('province', '')),
+                    city: @js(old('city', '')),
+                    barangay: @js(old('barangay', '')),
+                    address_line1: @js(old('address_line1', '')),
+                    address_line2: @js(old('address_line2', ''))
                 };
             @endif
         "
@@ -242,7 +246,11 @@
                                                         'phone_number' => (string) $tenant->phone_number,
                                                         'emergency_contact_name' => (string) ($tenant->emergency_contact_name ?? ''),
                                                         'emergency_contact_number' => (string) ($tenant->emergency_contact_number ?? ''),
-                                                        'address' => (string) ($tenant->address ?? ''),
+                                                        'province' => (string) ($tenant->province ?? ''),
+                                                        'city' => (string) ($tenant->city ?? ''),
+                                                        'barangay' => (string) ($tenant->barangay ?? ''),
+                                                        'address_line1' => (string) ($tenant->address_line1 ?? ''),
+                                                        'address_line2' => (string) ($tenant->address_line2 ?? ''),
                                                     ]); editOpen = true"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
@@ -376,17 +384,22 @@
                                     @enderror
                                 </div>
                                 <div>
-                                    <label for="create-address" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                                        Address
-                                    </label>
-                                    <input id="create-address" name="address" type="text" value="{{ old('_form') === 'create' ? old('address') : '' }}" placeholder="Street, city, region" class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('address') border-rose-300 ring-1 ring-rose-200 @enderror" />
-                                    @error('address')
-                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-                                            {{ $message }}
-                                        </p>
-                                    @enderror
+                                    <x-psgc-address
+                                        :province="old('_form') === 'create' ? old('province', '') : ''"
+                                        :city="old('_form') === 'create' ? old('city', '') : ''"
+                                        :barangay="old('_form') === 'create' ? old('barangay', '') : ''"
+                                        :addressLine1="old('_form') === 'create' ? old('address_line1', '') : ''"
+                                        :addressLine2="old('_form') === 'create' ? old('address_line2', '') : ''"
+                                        :required="false"
+                                    />
+                                    @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
+                                        @error($_addrField)
+                                            <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    @endforeach
                                 </div>
                             </div>
                         </div>
@@ -498,17 +511,19 @@
                                     @enderror
                                 </div>
                                 <div>
-                                    <label for="edit-address" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                                        Address
-                                    </label>
-                                    <input id="edit-address" name="address" type="text" x-model="selectedTenant.address" class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('address') border-rose-300 ring-1 ring-rose-200 @enderror" />
-                                    @error('address')
-                                        <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-                                            {{ $message }}
-                                        </p>
-                                    @enderror
+                                    <x-psgc-address
+                                        bind-parent
+                                        parent-key="selectedTenant"
+                                        :required="false"
+                                    />
+                                    @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
+                                        @error($_addrField)
+                                            <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    @endforeach
                                 </div>
                             </div>
                         </div>

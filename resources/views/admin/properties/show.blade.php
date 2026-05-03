@@ -65,10 +65,16 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold text-slate-900">{{ $property->name }}</h1>
-                    <p class="text-sm text-slate-400 flex items-center gap-1 mt-0.5">
-                        <svg class="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                        {{ $property->address }}
-                    </p>
+                    <div class="mt-1.5 space-y-0.5 text-sm text-slate-500">
+                        <p class="font-medium text-slate-700">{{ $property->address_line1 }}</p>
+                        @if($property->address_line2)
+                            <p class="text-slate-600">{{ $property->address_line2 }}</p>
+                        @endif
+                        <p class="flex items-start gap-1">
+                            <svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
+                            <span>{{ $property->barangay }}, {{ $property->city }}, {{ $property->province }}</span>
+                        </p>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -226,7 +232,7 @@
                     <ul class="space-y-4 text-sm">
                         <li class="flex gap-2">
                             <svg class="mt-0.5 h-4 w-4 shrink-0 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                            <span class="text-slate-600">{{ $property->address }}</span>
+                            <span class="text-slate-600">{{ $property->full_address }}</span>
                         </li>
                         <li class="flex items-center gap-2">
                             <svg class="h-4 w-4 shrink-0 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
@@ -425,11 +431,19 @@
                                 @enderror
                             </div>
                             <div>
-                                <label for="show-edit-address" class="mb-1.5 block text-sm font-semibold text-slate-700">Address <span class="text-rose-500">*</span></label>
-                                <input id="show-edit-address" name="address" type="text" value="{{ old('_form') === 'edit_show' ? old('address', $property->address) : $property->address }}" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm @error('address') border-rose-300 @enderror" />
-                                @error('address')
-                                    <p class="mt-1 text-xs font-medium text-rose-500">{{ $message }}</p>
-                                @enderror
+                                <x-psgc-address
+                                    :province="old('_form') === 'edit_show' ? old('province', $property->province) : $property->province"
+                                    :city="old('_form') === 'edit_show' ? old('city', $property->city) : $property->city"
+                                    :barangay="old('_form') === 'edit_show' ? old('barangay', $property->barangay) : $property->barangay"
+                                    :addressLine1="old('_form') === 'edit_show' ? old('address_line1', $property->address_line1) : $property->address_line1"
+                                    :addressLine2="old('_form') === 'edit_show' ? old('address_line2', $property->address_line2 ?? '') : ($property->address_line2 ?? '')"
+                                    :required="true"
+                                />
+                                @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
+                                    @error($_addrField)
+                                        <p class="mt-1 text-xs font-medium text-rose-500">{{ $message }}</p>
+                                    @enderror
+                                @endforeach
                             </div>
                             <div>
                                 <label for="show-edit-description" class="mb-1.5 block text-sm font-semibold text-slate-700">Description</label>

@@ -16,38 +16,76 @@ use Illuminate\View\View;
 
 class UnitController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View|RedirectResponse
     {
-        $units = Unit::query()
-            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->with('property')
-            ->orderBy('unit_number')
-            ->paginate(10)
-            ->withQueryString();
+        $ownerId = (int) auth()->id();
 
-        $properties = Property::query()->where('owner_id', auth()->id())->orderBy('name')->get();
+        $properties = Property::query()
+            ->where('owner_id', $ownerId)
+            ->orderBy('name')
+            ->get();
 
-        $totalUnits = Unit::whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))->count();
-        $occupiedUnits = Unit::query()
-            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->where('status', 'occupied')
-            ->count();
-        $vacantUnits = Unit::query()
-            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->where('status', 'vacant')
-            ->count();
-        $avgRent = (float) (Unit::query()
-            ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->avg('rent_price') ?? 0);
+        $propertyId = $request->filled('property_id') ? (int) $request->property_id : null;
+        if ($propertyId && ! $properties->contains('id', $propertyId)) {
+            return redirect()->route('admin.units.index', $request->except(['property_id']));
+        }
+
+        $status = $request->query('status');
+        $status = is_string($status) && $status !== '' ? $status : null;
+        if ($status !== null && ! in_array($status, ['vacant', 'occupied'], true)) {
+            return redirect()->route('admin.units.index', $request->except('status'));
+        }
+
+        $query = Unit::query()
+            ->whereHas('property', fn ($q) => $q->where('owner_id', $ownerId))
+            ->with(['property', 'images']);
+
+        if ($propertyId) {
+            $query->where('property_id', $propertyId);
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('unit_number', 'like', "%{$search}%")
+                    ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhereHas('property',
+                        fn ($q) => $q->where('name', 'like', "%{$search}%")
+                    );
+            });
+        }
+
+        match ($request->get('sort', 'unit_asc')) {
+            'rent_low' => $query->orderBy('rent_price', 'asc'),
+            'rent_high' => $query->orderBy('rent_price', 'desc'),
+            'newest' => $query->orderBy('created_at', 'desc'),
+            default => $query->orderBy('unit_number', 'asc'),
+        };
+
+        $units = $query->paginate(12)->withQueryString();
+
+        $baseQuery = Unit::query()->whereHas('property', fn ($q) => $q->where('owner_id', $ownerId));
+
+        $totalUnits = (clone $baseQuery)->count();
+        $occupiedUnits = (clone $baseQuery)->where('status', 'occupied')->count();
+        $vacantUnits = (clone $baseQuery)->where('status', 'vacant')->count();
+        $averageRent = (float) ((clone $baseQuery)->avg('rent_price') ?? 0);
+
+        $allProperties = $properties;
 
         return view('admin.units.index', [
             'title' => 'Units',
             'units' => $units,
             'properties' => $properties,
+            'allProperties' => $allProperties,
             'totalUnits' => $totalUnits,
             'occupiedUnits' => $occupiedUnits,
             'vacantUnits' => $vacantUnits,
-            'avgRent' => $avgRent,
+            'averageRent' => $averageRent,
             'unreadNotificationCount' => $this->unreadNotificationCount(),
         ]);
     }
@@ -62,7 +100,11 @@ class UnitController extends Controller
                 'property',
                 'leases' => fn ($q) => $q->with('tenant.user')->orderByDesc('start_date'),
             ])
-            ->firstOrFail();
+            ->first();
+
+        if (! $unit) {
+            abort(403);
+        }
 
         $recentPayments = Payment::query()
             ->whereHas('lease', fn ($q) => $q->where('unit_id', $unit->id))
@@ -87,7 +129,11 @@ class UnitController extends Controller
         $unit = Unit::query()
             ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
             ->whereKey($unit->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $unit) {
+            abort(403);
+        }
 
         $request->validate([
             'images' => ['required', 'array', 'max:5'],
@@ -118,7 +164,11 @@ class UnitController extends Controller
         $unit = Unit::query()
             ->whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
             ->whereKey($unit->getKey())
-            ->firstOrFail();
+            ->first();
+
+        if (! $unit) {
+            abort(403);
+        }
 
         if ((int) $image->unit_id !== (int) $unit->id) {
             abort(404);
@@ -135,7 +185,7 @@ class UnitController extends Controller
         $validated = $request->validate([
             'property_id' => ['required', 'exists:properties,id'],
             'unit_number' => ['required', 'string', 'max:255'],
-            'unit_type' => ['required', 'string', 'max:255'],
+            'unit_type' => ['required', 'in:Studio,1BR,2BR,3BR'],
             'rent_price' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'in:vacant,occupied'],
         ]);
@@ -164,7 +214,7 @@ class UnitController extends Controller
         $validated = $request->validate([
             'property_id' => ['required', 'exists:properties,id'],
             'unit_number' => ['required', 'string', 'max:255'],
-            'unit_type' => ['required', 'string', 'max:255'],
+            'unit_type' => ['required', 'in:Studio,1BR,2BR,3BR'],
             'rent_price' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'in:vacant,occupied'],
         ]);

@@ -32,7 +32,11 @@ class TenantTest extends TestCase
             'phone_number' => '+639998887766',
             'emergency_contact_name' => 'Ramon Mercado',
             'emergency_contact_number' => '+639887766554',
-            'address' => '45 Sto. Rosario Street, Angeles City, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'Angeles City',
+            'barangay' => 'Sto. Domingo',
+            'address_line1' => '45 Sto. Rosario Street',
+            'address_line2' => null,
         ];
 
         $response = $this->actingAs($admin)
@@ -55,6 +59,10 @@ class TenantTest extends TestCase
             'user_id' => $user->id,
             'owner_id' => $admin->id,
             'phone_number' => '+639998887766',
+            'province' => 'Pampanga',
+            'city' => 'Angeles City',
+            'barangay' => 'Sto. Domingo',
+            'address_line1' => '45 Sto. Rosario Street',
         ]);
     }
 
@@ -111,7 +119,11 @@ class TenantTest extends TestCase
                 'phone_number' => '+639000001111',
                 'emergency_contact_name' => 'Emergency Contact',
                 'emergency_contact_number' => '+639000002222',
-                'address' => '88 Friendship Highway, Dau, Mabalacat, Pampanga',
+                'province' => 'Pampanga',
+                'city' => 'Mabalacat City',
+                'barangay' => 'Dau',
+                'address_line1' => '88 Friendship Highway',
+                'address_line2' => null,
             ]);
 
         $response->assertRedirect(route('admin.tenants.show', $tenant));
@@ -125,7 +137,10 @@ class TenantTest extends TestCase
         $this->assertDatabaseHas('tenants', [
             'id' => $tenant->id,
             'phone_number' => '+639000001111',
-            'address' => '88 Friendship Highway, Dau, Mabalacat, Pampanga',
+            'province' => 'Pampanga',
+            'city' => 'Mabalacat City',
+            'barangay' => 'Dau',
+            'address_line1' => '88 Friendship Highway',
         ]);
     }
 
