@@ -19,63 +19,51 @@ class PaymentController extends Controller
      * Tenant payment proofs are stored on the public disk under payments/proofs.
      * Run: php artisan storage:link
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $tenant = auth()->user()->tenant;
 
-        $lease = $tenant?->leases()
-            ->where('status', 'active')
-            ->with('unit.property')
-            ->orderByDesc('start_date')
-            ->first();
+        $leases = $tenant
+            ? $tenant->leases()
+                ->where('status', 'active')
+                ->with('unit.property')
+                ->orderByDesc('start_date')
+                ->get()
+            : collect();
 
-        $payments = $lease
-            ? $lease->payments()->latest('due_date')->paginate(10)
-            : Payment::query()->whereRaw('1 = 0')->paginate(10);
+        $paymentsByLease = [];
+        foreach ($leases as $lease) {
+            $query = $lease->payments()->orderBy('due_date', 'desc');
+            $paymentsByLease[] = [
+                'lease' => $lease,
+                'payments' => $query->paginate(10, ['*'], 'page_'.$lease->id),
+            ];
+        }
 
-        $earliestUnpaidPaymentId = $lease
-            ? $lease->payments()
-                ->whereNotIn('status', ['paid'])
-                ->orderBy('due_date')
-                ->value('id')
-            : null;
-
-        $earliestUnpaidDueLabel = $lease
-            ? optional(
-                $lease->payments()
-                    ->whereNotIn('status', ['paid'])
-                    ->orderBy('due_date')
-                    ->first()
-            )->due_date?->format('M Y')
-            : null;
+        $selectedLeaseId = $request->get('lease_id');
 
         return view('tenant.payments.index', [
             'title' => 'My Payments',
-            'payments' => $payments,
-            'lease' => $lease,
-            'earliestUnpaidPaymentId' => $earliestUnpaidPaymentId,
-            'earliestUnpaidDueLabel' => $earliestUnpaidDueLabel,
+            'leases' => $leases,
+            'paymentsByLease' => $paymentsByLease,
+            'selectedLeaseId' => $selectedLeaseId,
             'unreadNotificationCount' => $this->unreadNotificationCount(),
         ]);
     }
 
     public function show(Payment $payment): View
     {
-        $payment->load(['lease.unit.property']);
-
         $tenant = auth()->user()->tenant;
         abort_unless($tenant, 403);
-        abort_unless((int) $payment->lease->tenant_id === (int) $tenant->id, 403);
 
-        $lease = $tenant->leases()
-            ->where('status', 'active')
-            ->orderByDesc('start_date')
-            ->first();
-
-        if (! $lease || (int) $lease->id !== (int) $payment->lease_id) {
-            $lease = $payment->lease;
+        $tenantLeaseIds = $tenant->leases()->where('status', 'active')->pluck('id');
+        if (! $tenantLeaseIds->contains($payment->lease_id)) {
+            abort(403);
         }
 
+        $payment->load('lease.unit.property');
+
+        $lease = $payment->lease;
         $earliestUnpaid = $lease->payments()
             ->whereNotIn('status', ['paid'])
             ->orderBy('due_date', 'asc')
@@ -102,7 +90,7 @@ class PaymentController extends Controller
         abort_unless((int) $payment->lease->tenant_id === (int) $tenant->id, 403);
         abort_unless($payment->lease->status === 'active', 403);
 
-        if (! in_array($payment->status, ['pending', 'verifying', 'rejected', 'late'], true)) {
+        if (! in_array($payment->status, ['pending', 'verifying', 'verifying_late', 'rejected', 'late'], true)) {
             return back()->with('error', 'You cannot submit proof for this payment in its current state.');
         }
 
@@ -115,7 +103,7 @@ class PaymentController extends Controller
             return back()->with('error', 'You must pay in order. Please submit proof for the earliest pending payment first.');
         }
 
-        $validated = $request->validate([
+        $request->validate([
             'proof' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
@@ -125,9 +113,16 @@ class PaymentController extends Controller
 
         $path = Storage::disk('public')->putFile('payments/proofs', $request->file('proof'));
 
+        $newStatus = match ($payment->status) {
+            'late' => 'verifying_late',
+            'verifying_late' => 'verifying_late',
+            'rejected' => ((float) $payment->late_fee_amount > 0) ? 'verifying_late' : 'verifying',
+            default => 'verifying',
+        };
+
         $payment->update([
             'proof_of_payment' => $path,
-            'status' => 'verifying',
+            'status' => $newStatus,
             'payment_date' => now()->toDateString(),
         ]);
 
@@ -137,13 +132,16 @@ class PaymentController extends Controller
         $unit = $lease->unit;
         $property = $unit->property;
         $owner = User::find($property->owner_id);
-        $tenant = auth()->user();
+        $tenantUser = auth()->user();
+
+        $lateNote = $newStatus === 'verifying_late' ? ' (Late Payment)' : '';
 
         if ($owner) {
             (new NotificationService)->send(
                 $owner,
                 'payment_submitted',
-                "{$tenant->name} submitted proof of payment for Unit {$unit->unit_number} — ₱".number_format((float) $payment->amount_paid, 2),
+                "{$tenantUser->name} submitted proof of payment for Unit {$unit->unit_number}{$lateNote} — ₱"
+                    .number_format((float) $payment->total_amount_due, 2),
                 route('admin.payments.show', $payment->id)
             );
         }

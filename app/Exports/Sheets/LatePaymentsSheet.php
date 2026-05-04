@@ -43,7 +43,7 @@ class LatePaymentsSheet implements FromArray, WithHeadings, WithStyles, WithTitl
         return Payment::whereHas('lease.unit.property',
             fn ($q) => $q->where('owner_id', $this->ownerId)
         )
-            ->where('status', 'late')
+            ->whereIn('status', ['late', 'verifying_late'])
             ->whereBetween('due_date', [$this->startDate, $this->endDate])
             ->with(['lease.tenant.user', 'lease.unit.property'])
             ->orderBy('due_date', 'desc')

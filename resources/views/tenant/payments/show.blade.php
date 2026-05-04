@@ -15,6 +15,7 @@
         $statusConfig = [
             'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
             'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+            'verifying_late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400 animate-pulse', 'Verifying (Late)'],
             'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
             'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
             'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],
@@ -253,7 +254,7 @@
                                 <p class="text-xs text-red-600">{{ $payment->remarks ?: 'Please upload a new proof or contact your property manager.' }}</p>
                             </div>
                         </div>
-                    @elseif($payment->status === 'verifying')
+                    @elseif($payment->isVerifying())
                         <div class="mt-4 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                             <svg class="h-5 w-5 shrink-0 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                             <div>
@@ -289,7 +290,7 @@
                         @if($payment->payment_date)
                             <p class="mt-3 text-xs text-slate-400">Submitted on {{ $payment->payment_date->format('M d, Y') }}</p>
                         @endif
-                    @elseif(in_array($payment->status, ['pending', 'late', 'verifying', 'rejected'], true))
+                    @elseif(in_array($payment->status, ['pending', 'late', 'verifying', 'verifying_late', 'rejected'], true))
                         @if(! $isEarliestUnpaid && $payment->status === 'pending' && $earliestUnpaid)
                             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6">
                                 <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100">
@@ -323,9 +324,9 @@
                                 </p>
                             </div>
                         @else
-                            @if(in_array($payment->status, ['verifying', 'rejected'], true))
+                            @if(in_array($payment->status, ['verifying', 'verifying_late', 'rejected'], true))
                                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    @if($payment->status === 'verifying')
+                                    @if($payment->isVerifying())
                                         Resubmit Proof
                                     @else
                                         Upload New Proof
@@ -441,13 +442,13 @@
                                 @php
                                     $t3 = match (true) {
                                         $payment->status === 'rejected' => 'bg-red-500',
-                                        $payment->status === 'verifying' => 'bg-indigo-500 animate-pulse',
+                                        $payment->isVerifying() => 'bg-indigo-500 animate-pulse',
                                         $payment->status === 'paid' => 'bg-emerald-500',
                                         default => 'bg-slate-200',
                                     };
                                     $t3label = match (true) {
                                         $payment->status === 'rejected' => 'Rejected',
-                                        $payment->status === 'verifying' => 'Under review',
+                                        $payment->isVerifying() => 'Under review',
                                         $payment->status === 'paid' => ($payment->verified_at ? $payment->verified_at->format('M d, Y') : 'Completed'),
                                         default => 'Awaiting',
                                     };

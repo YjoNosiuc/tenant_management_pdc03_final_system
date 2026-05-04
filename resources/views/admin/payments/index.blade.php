@@ -41,7 +41,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div class="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
                 <div class="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-amber-500 opacity-10"></div>
                 <div class="flex items-start justify-between">
@@ -65,6 +65,18 @@
                     </div>
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50">
                         <svg class="h-6 w-6 animate-pulse text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-rose-100 transition-all duration-200 hover:shadow-md">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Verifying (Late)</p>
+                        <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($verifyingLateCount) }}</p>
+                        <p class="mt-1 text-xs text-slate-400">Late with proof submitted</p>
+                    </div>
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50">
+                        <svg class="h-6 w-6 text-rose-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
                     </div>
                 </div>
             </div>
@@ -177,6 +189,7 @@
                             <option value="">All Statuses</option>
                             <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                             <option value="verifying" {{ request('status') === 'verifying' ? 'selected' : '' }}>Verifying</option>
+                            <option value="verifying_late" {{ request('status') === 'verifying_late' ? 'selected' : '' }}>Verifying (Late)</option>
                             <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Paid</option>
                             <option value="late" {{ request('status') === 'late' ? 'selected' : '' }}>Late</option>
                             <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
@@ -296,11 +309,12 @@
                                     $tenantUser = $payment->lease?->tenant?->user;
                                     $unit = $payment->lease?->unit;
                                     $property = $unit?->property;
-                                    $isOverdue = $payment->status === 'late' ||
-                                        ($payment->status === 'pending' && $payment->due_date && $payment->due_date->lt(now()->startOfDay()));
+                                    $isOverdue = $payment->isLateType()
+                                        || ($payment->status === 'pending' && $payment->due_date && $payment->due_date->lt(now()->startOfDay()));
                                     $statusConfig = [
                                         'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
                                         'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+                                        'verifying_late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400 animate-pulse', 'Verifying (Late)'],
                                         'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
                                         'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
                                         'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],

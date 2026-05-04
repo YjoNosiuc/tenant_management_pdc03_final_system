@@ -54,7 +54,7 @@ class PaymentController extends Controller
 
         $status = $request->query('status');
         $status = is_string($status) && $status !== '' ? $status : null;
-        if ($status !== null && ! in_array($status, ['pending', 'verifying', 'paid', 'late', 'rejected'], true)) {
+        if ($status !== null && ! in_array($status, ['pending', 'verifying', 'verifying_late', 'paid', 'late', 'rejected'], true)) {
             return redirect()->route('admin.payments.index', $request->except('status'));
         }
 
@@ -89,7 +89,8 @@ class PaymentController extends Controller
         $baseQuery = Payment::query()->whereHas('lease.unit.property', fn ($q) => $q->where('owner_id', $ownerId));
 
         $pendingCount = (clone $baseQuery)->where('status', 'pending')->count();
-        $verifyingCount = (clone $baseQuery)->where('status', 'verifying')->count();
+        $verifyingCount = (clone $baseQuery)->whereIn('status', ['verifying', 'verifying_late'])->count();
+        $verifyingLateCount = (clone $baseQuery)->where('status', 'verifying_late')->count();
         $paidCount = (clone $baseQuery)->where('status', 'paid')->count();
         $lateCount = (clone $baseQuery)->where('status', 'late')->count();
         $rejectedCount = (clone $baseQuery)->where('status', 'rejected')->count();
@@ -100,6 +101,7 @@ class PaymentController extends Controller
             'units',
             'pendingCount',
             'verifyingCount',
+            'verifyingLateCount',
             'paidCount',
             'lateCount',
             'rejectedCount'
@@ -123,8 +125,8 @@ class PaymentController extends Controller
     {
         $this->assertPaymentOwnedByAuth($payment);
 
-        if ($payment->status !== 'verifying') {
-            return back()->with('error', 'Only payments awaiting verification can be verified.');
+        if (! in_array($payment->status, ['verifying', 'verifying_late'], true)) {
+            return back()->with('error', 'Only payments with submitted proof can be verified.');
         }
 
         $payment->update([
@@ -151,8 +153,8 @@ class PaymentController extends Controller
     {
         $this->assertPaymentOwnedByAuth($payment);
 
-        if ($payment->status !== 'verifying') {
-            return back()->with('error', 'Only payments awaiting verification can be rejected.');
+        if (! in_array($payment->status, ['verifying', 'verifying_late'], true)) {
+            return back()->with('error', 'Only payments with submitted proof can be rejected.');
         }
 
         $validated = $request->validate([

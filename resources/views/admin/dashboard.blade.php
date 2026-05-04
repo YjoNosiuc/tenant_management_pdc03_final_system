@@ -19,6 +19,7 @@
             'paid' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
             'pending' => 'bg-amber-50 text-amber-700 ring-amber-100',
             'verifying' => 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+            'verifying_late' => 'bg-rose-50 text-rose-700 ring-rose-100',
             'late' => 'bg-rose-50 text-rose-700 ring-rose-100',
             'rejected' => 'bg-red-50 text-red-700 ring-red-100',
             default => 'bg-slate-50 text-slate-700 ring-slate-100',
@@ -148,6 +149,7 @@
                                                             'paid' => 'bg-emerald-400',
                                                             'pending' => 'bg-amber-400',
                                                             'verifying' => 'bg-indigo-400 animate-pulse',
+                                                            'verifying_late' => 'bg-rose-400 animate-pulse',
                                                             'late' => 'bg-rose-400',
                                                             'rejected' => 'bg-red-400',
                                                             default => 'bg-slate-400',
@@ -155,6 +157,7 @@
                                                         {{ match ($payment->status) {
                                                             'pending' => 'Pending',
                                                             'verifying' => 'Verifying',
+                                                            'verifying_late' => 'Verifying (Late)',
                                                             'paid' => 'Paid',
                                                             'late' => 'Late',
                                                             'rejected' => 'Rejected',
@@ -258,8 +261,9 @@
                         $statusMeta = [
                             ['key' => 'pending', 'label' => 'Pending', 'dot' => 'bg-amber-500'],
                             ['key' => 'verifying', 'label' => 'Verifying', 'dot' => 'bg-indigo-500'],
+                            ['key' => 'verifying_late', 'label' => 'Verifying (Late)', 'dot' => 'bg-rose-500'],
                             ['key' => 'paid', 'label' => 'Paid', 'dot' => 'bg-emerald-500'],
-                            ['key' => 'late', 'label' => 'Late', 'dot' => 'bg-rose-500'],
+                            ['key' => 'late', 'label' => 'Late', 'dot' => 'bg-rose-600'],
                             ['key' => 'rejected', 'label' => 'Rejected', 'dot' => 'bg-red-900'],
                         ];
                     @endphp
@@ -338,12 +342,13 @@ if (paymentStatusCtx) {
     new Chart(paymentStatusCtx, {
         type: 'doughnut',
         data: {
-            labels: ['Pending', 'Verifying', 'Paid', 'Late', 'Rejected'],
+            labels: ['Pending', 'Verifying', 'Verifying (Late)', 'Paid', 'Late', 'Rejected'],
             datasets: [{
                 data: {!! json_encode($paymentStatusData) !!},
                 backgroundColor: [
                     'rgba(245, 158, 11, 0.8)',
                     'rgba(99, 102, 241, 0.8)',
+                    'rgba(244, 63, 94, 0.8)',
                     'rgba(16, 185, 129, 0.8)',
                     'rgba(239, 68, 68, 0.8)',
                     'rgba(127, 29, 29, 0.8)',

@@ -134,6 +134,31 @@
             </div>
         </div>
 
+        @isset($paymentStatusSummary)
+            <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-6">
+                <h2 class="text-base font-semibold text-slate-900">Payment Status Summary</h2>
+                <p class="text-sm text-slate-400 mt-0.5 mb-4">Counts by status for payments with due dates in the selected range</p>
+                @php
+                    $psLabels = [
+                        'pending' => 'Pending',
+                        'verifying' => 'Verifying',
+                        'verifying_late' => 'Verifying (Late)',
+                        'paid' => 'Paid',
+                        'late' => 'Late',
+                        'rejected' => 'Rejected',
+                    ];
+                @endphp
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    @foreach($psLabels as $key => $label)
+                        <div class="rounded-xl bg-slate-50 ring-1 ring-slate-100 p-4 text-center">
+                            <p class="text-xs font-semibold text-slate-500">{{ $label }}</p>
+                            <p class="mt-1 text-xl font-bold text-slate-900">{{ number_format($paymentStatusSummary[$key] ?? 0) }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endisset
+
         {{-- Property breakdown --}}
         <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-4">
             <h2 class="text-base font-semibold text-slate-900">Income by Property</h2>
@@ -219,8 +244,8 @@
         <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-4">
             <div class="flex flex-wrap items-center justify-between gap-2 mb-6">
                 <div>
-                    <h2 class="text-base font-semibold text-slate-900">Late Payments</h2>
-                    <p class="text-sm text-slate-400 mt-0.5">Overdue schedules in the selected period</p>
+                    <h2 class="text-base font-semibold text-slate-900">Late Payments (including proof submitted)</h2>
+                    <p class="text-sm text-slate-400 mt-0.5">Overdue schedules in the selected period (late and verifying late)</p>
                 </div>
                 <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">
                     Total late fees: ₱{{ number_format($totalLateFees, 2) }}
@@ -298,7 +323,10 @@
                                     <td class="px-4 py-3 text-right">₱{{ number_format((float) $payment->late_fee_amount, 2) }}</td>
                                     <td class="px-4 py-3 text-right font-semibold text-indigo-700">₱{{ number_format((float) $payment->total_amount_due, 2) }}</td>
                                     <td class="px-4 py-3">
-                                        <span class="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">Late</span>
+                                        @php
+                                            $ls = $payment->status === 'verifying_late' ? 'Verifying (Late)' : 'Late';
+                                        @endphp
+                                        <span class="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">{{ $ls }}</span>
                                     </td>
                                 </tr>
                             @endforeach

@@ -59,6 +59,30 @@ class PaymentTest extends TestCase
         $this->assertNotNull($payment->verified_at);
     }
 
+    public function test_admin_can_verify_a_verifying_late_payment(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+        $payment = $this->createPayment($lease->id, 'verifying_late', [
+            'proof_of_payment' => 'payments/proofs/late.jpg',
+            'payment_date' => now()->toDateString(),
+            'late_fee_amount' => 400,
+            'total_amount_due' => 18900,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.payments.show', $payment))
+            ->patch(route('admin.payments.verify', $payment))
+            ->assertSessionHas('success', 'Payment verified successfully.');
+
+        $payment->refresh();
+        $this->assertSame('paid', $payment->status);
+        $this->assertNotNull($payment->verified_at);
+    }
+
     public function test_admin_cannot_verify_a_pending_payment(): void
     {
         $admin = $this->createAdmin();
@@ -73,7 +97,7 @@ class PaymentTest extends TestCase
             ->patch(route('admin.payments.verify', $payment));
 
         $response->assertRedirect(route('admin.payments.show', $payment));
-        $response->assertSessionHas('error', 'Only payments awaiting verification can be verified.');
+        $response->assertSessionHas('error', 'Only payments with submitted proof can be verified.');
 
         $payment->refresh();
         $this->assertSame('pending', $payment->status);
@@ -105,6 +129,77 @@ class PaymentTest extends TestCase
         $this->assertSame('rejected', $payment->status);
         $this->assertSame('Proof image was unreadable. Please resubmit a clearer receipt.', $payment->remarks);
         $this->assertNull($payment->verified_at);
+    }
+
+    public function test_admin_can_reject_a_verifying_late_payment_with_remarks(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+        $payment = $this->createPayment($lease->id, 'verifying_late', [
+            'proof_of_payment' => 'payments/proofs/late-proof.jpg',
+            'payment_date' => now()->toDateString(),
+            'late_fee_amount' => 200,
+            'total_amount_due' => 18700,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.payments.show', $payment))
+            ->patch(route('admin.payments.reject', $payment), [
+                'remarks' => 'Amount on receipt does not match total due including late fee.',
+            ])
+            ->assertSessionHas('success', 'Payment rejected. Tenant can resubmit.');
+
+        $payment->refresh();
+        $this->assertSame('rejected', $payment->status);
+        $this->assertSame('Amount on receipt does not match total due including late fee.', $payment->remarks);
+    }
+
+    public function test_admin_cannot_verify_a_late_payment_without_proof(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+        $payment = $this->createPayment($lease->id, 'late', [
+            'due_date' => now()->subDay()->toDateString(),
+            'late_fee_amount' => 500,
+            'total_amount_due' => 19000,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.payments.show', $payment))
+            ->patch(route('admin.payments.verify', $payment))
+            ->assertSessionHas('error', 'Only payments with submitted proof can be verified.');
+
+        $payment->refresh();
+        $this->assertSame('late', $payment->status);
+    }
+
+    public function test_admin_payments_index_includes_verifying_late_count(): void
+    {
+        $admin = $this->createAdmin();
+        $tenantUser = $this->createTenantUser([], [], $admin);
+        $property = $this->createProperty([], $admin);
+        $unit = $this->createUnit($property->id, 'occupied');
+        $lease = $this->createLease($tenantUser->tenant->id, $unit->id, 'active');
+        $this->createPayment($lease->id, 'verifying_late', [
+            'proof_of_payment' => 'payments/proofs/a.jpg',
+            'payment_date' => now()->toDateString(),
+        ]);
+        $this->createPayment($lease->id, 'verifying_late', [
+            'proof_of_payment' => 'payments/proofs/b.jpg',
+            'payment_date' => now()->toDateString(),
+            'due_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payments.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('verifyingLateCount', 2);
     }
 
     public function test_admin_cannot_reject_a_payment_without_providing_remarks(): void
@@ -141,7 +236,7 @@ class PaymentTest extends TestCase
                 'remarks' => 'Some reason',
             ]);
 
-        $response->assertSessionHas('error', 'Only payments awaiting verification can be rejected.');
+        $response->assertSessionHas('error', 'Only payments with submitted proof can be rejected.');
         $payment->refresh();
         $this->assertSame('pending', $payment->status);
     }

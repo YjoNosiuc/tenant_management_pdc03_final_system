@@ -133,7 +133,7 @@ class ReportsController extends Controller
         $latePayments = Payment::whereHas('lease.unit.property',
             fn ($q) => $q->where('owner_id', $ownerId)
         )
-            ->where('status', 'late')
+            ->whereIn('status', ['late', 'verifying_late'])
             ->whereBetween('due_date', [$startDate, $endDate])
             ->with(['lease.tenant.user', 'lease.unit.property'])
             ->orderBy('due_date', 'desc')
@@ -152,7 +152,7 @@ class ReportsController extends Controller
             ->values();
 
         $paymentStatusSummary = [];
-        foreach (['pending', 'verifying', 'paid', 'late', 'rejected'] as $status) {
+        foreach (['pending', 'verifying', 'verifying_late', 'paid', 'late', 'rejected'] as $status) {
             $paymentStatusSummary[$status] = Payment::whereHas('lease.unit.property',
                 fn ($q) => $q->where('owner_id', $ownerId)
             )

@@ -27,7 +27,7 @@ class DashboardController extends Controller
             ->count();
         $pendingPayments = Payment::query()
             ->whereHas('lease.unit.property', fn ($q) => $q->where('owner_id', auth()->id()))
-            ->whereIn('status', ['pending', 'late', 'verifying'])
+            ->whereIn('status', ['pending', 'late', 'verifying', 'verifying_late'])
             ->count();
 
         $occupiedUnits = Unit::whereHas('property', fn ($q) => $q->where('owner_id', auth()->id()))
@@ -88,7 +88,7 @@ class DashboardController extends Controller
         }
 
         $paymentStatusData = [];
-        foreach (['pending', 'verifying', 'paid', 'late', 'rejected'] as $status) {
+        foreach (['pending', 'verifying', 'verifying_late', 'paid', 'late', 'rejected'] as $status) {
             $paymentStatusData[] = Payment::whereHas('lease.unit.property',
                 fn ($q) => $q->where('owner_id', auth()->id())
             )->where('status', $status)->count();
@@ -97,9 +97,10 @@ class DashboardController extends Controller
         $paymentStatusCounts = [
             'pending' => $paymentStatusData[0],
             'verifying' => $paymentStatusData[1],
-            'paid' => $paymentStatusData[2],
-            'late' => $paymentStatusData[3],
-            'rejected' => $paymentStatusData[4],
+            'verifying_late' => $paymentStatusData[2],
+            'paid' => $paymentStatusData[3],
+            'late' => $paymentStatusData[4],
+            'rejected' => $paymentStatusData[5],
         ];
         $totalPaymentsCount = array_sum($paymentStatusData);
 

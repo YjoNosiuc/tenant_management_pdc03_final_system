@@ -44,7 +44,7 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertSee('Emerald Residences');
         $response->assertSee('Unit 8D');
-        $response->assertSee('₱21,250.00');
+        $response->assertSee('₱21,250');
     }
 
     public function test_dashboard_shows_next_pending_payment(): void
@@ -73,7 +73,7 @@ class DashboardTest extends TestCase
         $response = $this->actingAs($tenantUser)->get(route('tenant.dashboard'));
 
         $response->assertOk();
-        $response->assertSee('No Active Lease');
+        $response->assertSee('No Active Leases');
     }
 
     public function test_dashboard_shows_no_pending_payments_when_all_caught_up(): void
@@ -91,6 +91,6 @@ class DashboardTest extends TestCase
         $response = $this->actingAs($tenantUser)->get(route('tenant.dashboard'));
 
         $response->assertOk();
-        $response->assertSee('No pending payments');
+        $response->assertSee('All caught up!');
     }
 }

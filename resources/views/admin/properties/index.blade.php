@@ -37,6 +37,18 @@
                     description: @js(old('description', ''))
                 };
             @endif
+            $watch('editOpen', (open) => {
+                if (open && selectedProperty && selectedProperty.id) {
+                    $nextTick(() => {
+                        window.dispatchEvent(new CustomEvent('psgc-hydrate-admin-property', { detail: JSON.parse(JSON.stringify(selectedProperty)) }));
+                    });
+                }
+            });
+            $nextTick(() => {
+                if (editOpen && selectedProperty && selectedProperty.id) {
+                    window.dispatchEvent(new CustomEvent('psgc-hydrate-admin-property', { detail: JSON.parse(JSON.stringify(selectedProperty)) }));
+                }
+            });
         "
     >
         {{-- Flash alerts --}}
@@ -369,14 +381,7 @@
                                 @enderror
                             </div>
                             <div>
-                                <x-psgc-address
-                                    :province="old('_form') === 'create' ? old('province', '') : ''"
-                                    :city="old('_form') === 'create' ? old('city', '') : ''"
-                                    :barangay="old('_form') === 'create' ? old('barangay', '') : ''"
-                                    :addressLine1="old('_form') === 'create' ? old('address_line1', '') : ''"
-                                    :addressLine2="old('_form') === 'create' ? old('address_line2', '') : ''"
-                                    :required="true"
-                                />
+                                <x-psgc-address :required="true" />
                                 @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
                                     @error($_addrField)
                                         <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
@@ -450,11 +455,7 @@
                                 @enderror
                             </div>
                             <div>
-                                <x-psgc-address
-                                    bind-parent
-                                    parent-key="selectedProperty"
-                                    :required="true"
-                                />
+                                <x-psgc-address edit-hydrate="property" :required="true" />
                                 @foreach (['province', 'city', 'barangay', 'address_line1', 'address_line2'] as $_addrField)
                                     @error($_addrField)
                                         <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">

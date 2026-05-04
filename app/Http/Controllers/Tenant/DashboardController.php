@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -13,32 +14,55 @@ class DashboardController extends Controller
     {
         $tenant = auth()->user()->tenant;
 
-        $lease = $tenant?->leases()
-            ->where('status', 'active')
-            ->with(['unit.images', 'unit.property.images'])
-            ->orderByDesc('start_date')
-            ->first();
+        $activeLeases = $tenant
+            ? $tenant->leases()
+                ->where('status', 'active')
+                ->with(['unit.property', 'unit.images', 'unit.property.images', 'payments'])
+                ->orderByDesc('start_date')
+                ->get()
+            : collect();
 
-        $unitImages = $lease?->unit?->images ?? collect();
-        $propertyImages = $lease?->unit?->property?->images ?? collect();
-        $allImages = $unitImages->merge($propertyImages);
+        $leaseCards = $activeLeases->map(function ($lease) {
+            $nextPayment = $lease->payments()
+                ->whereNotIn('status', ['paid'])
+                ->orderBy('due_date', 'asc')
+                ->first();
 
-        $nextPayment = $lease?->payments()
-            ->whereNotIn('status', ['paid'])
-            ->orderBy('due_date')
-            ->first();
+            return [
+                'lease' => $lease,
+                'nextPayment' => $nextPayment,
+            ];
+        });
 
-        $recentPayments = $lease?->payments()
-            ->latest('due_date')
+        $allImages = $activeLeases->flatMap(function ($lease) {
+            $unitImages = $lease->unit?->images ?? collect();
+            $propertyImages = $lease->unit?->property?->images ?? collect();
+
+            return $unitImages->merge($propertyImages);
+        });
+
+        $allLeaseIds = $activeLeases->pluck('id');
+        $recentPayments = Payment::query()
+            ->whereIn('lease_id', $allLeaseIds)
+            ->with(['lease.unit.property'])
+            ->orderBy('due_date', 'desc')
             ->take(5)
-            ->get() ?? collect();
+            ->get();
+
+        $lease = $activeLeases->first();
+        $nextPayment = $leaseCards->first()['nextPayment'] ?? null;
 
         $contractPath = $lease?->contract_path;
         $contractUploadedAt = $lease?->contract_uploaded_at;
 
+        $unitImages = $lease?->unit?->images ?? collect();
+        $propertyImages = $lease?->unit?->property?->images ?? collect();
+
         return view('tenant.dashboard', [
             'title' => 'My Dashboard',
             'tenant' => $tenant,
+            'activeLeases' => $activeLeases,
+            'leaseCards' => $leaseCards,
             'lease' => $lease,
             'contractPath' => $contractPath,
             'contractUploadedAt' => $contractUploadedAt,

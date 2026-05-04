@@ -14,6 +14,7 @@
         $statusConfig = [
             'pending' => ['bg-amber-50 text-amber-700 ring-1 ring-amber-100', 'bg-amber-400', 'Pending'],
             'verifying' => ['bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100', 'bg-indigo-400 animate-pulse', 'Verifying'],
+            'verifying_late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400 animate-pulse', 'Verifying (Late)'],
             'paid' => ['bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100', 'bg-emerald-400', 'Paid'],
             'late' => ['bg-rose-50 text-rose-700 ring-1 ring-rose-100', 'bg-rose-400', 'Late'],
             'rejected' => ['bg-red-50 text-red-700 ring-1 ring-red-100', 'bg-red-400', 'Rejected'],
@@ -264,7 +265,7 @@
                                 <p class="text-sm font-semibold text-slate-700">Awaiting Proof</p>
                                 <p class="mt-1 text-xs text-slate-400">The tenant has not submitted proof yet.</p>
                             </div>
-                        @elseif($payment->status === 'verifying')
+                        @elseif($payment->isVerifying())
                             <form method="POST" action="{{ route('admin.payments.verify', $payment) }}">
                                 @csrf
                                 @method('PATCH')
@@ -330,13 +331,13 @@
                                 @php
                                     $t3 = match (true) {
                                         $payment->status === 'rejected' => 'bg-red-500',
-                                        $payment->status === 'verifying' => 'bg-indigo-500',
+                                        $payment->isVerifying() => 'bg-indigo-500',
                                         $payment->verified_at !== null => 'bg-emerald-500',
                                         default => 'bg-slate-200',
                                     };
                                     $t3label = match (true) {
                                         $payment->status === 'rejected' => 'Rejected',
-                                        $payment->status === 'verifying' => 'Under review',
+                                        $payment->isVerifying() => 'Under review',
                                         $payment->verified_at !== null => $payment->verified_at->format('M d, Y'),
                                         default => 'Awaiting',
                                     };

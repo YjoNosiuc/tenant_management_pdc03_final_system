@@ -58,4 +58,15 @@ class Payment extends Model
             'is_late' => $this->status === 'late',
         ];
     }
+
+    public function isLateType(): bool
+    {
+        return in_array($this->status, ['late', 'verifying_late'], true);
+    }
+
+    public function isVerifying(): bool
+    {
+        return in_array($this->status, ['verifying', 'verifying_late'], true);
+    }
 }
+
