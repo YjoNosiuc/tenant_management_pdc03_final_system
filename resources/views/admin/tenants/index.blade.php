@@ -10,18 +10,12 @@
     <div
         class="mx-auto max-w-7xl space-y-8"
         x-data="{
-            q: '',
             createOpen: false,
             editOpen: false,
             deleteOpen: false,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
             selectedTenant: { id: null, user_id: null, name: '', email: '', phone_number: '', emergency_contact_name: '', emergency_contact_number: '', province: '', city: '', barangay: '', address_line1: '', address_line2: '' },
             deleteTenant: { id: null, name: '' },
-            matches(name, email) {
-                const s = this.q.trim().toLowerCase();
-                if (!s) return true;
-                return (name || '').toLowerCase().includes(s) || (email || '').toLowerCase().includes(s);
-            }
         }"
         x-init="
             @if(session()->has('success') || session()->has('error'))
@@ -120,7 +114,7 @@
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-sm font-medium text-slate-500">With Active Lease</p>
-                        <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($tenantsWithActiveLease) }}</p>
+                        <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($withLease) }}</p>
                         <p class="mt-1 text-xs text-slate-400">Currently housed</p>
                     </div>
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
@@ -133,7 +127,7 @@
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-sm font-medium text-slate-500">Without Active Lease</p>
-                        <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($tenantsWithoutActiveLease) }}</p>
+                        <p class="mt-2 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($withoutLease) }}</p>
                         <p class="mt-1 text-xs text-slate-400">No active lease this period</p>
                     </div>
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50">
@@ -145,26 +139,85 @@
 
         {{-- Table card --}}
         <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-900">All tenants</h2>
-                    <p class="mt-1 text-sm text-slate-500">Search by name or email</p>
-                </div>
-                <div class="w-full sm:max-w-xs">
-                    <label for="tenant-search" class="sr-only">Search tenants</label>
-                    <div class="relative">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <svg class="h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            <form method="GET" action="{{ route('admin.tenants.index') }}">
+                <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex flex-1 gap-3">
+                        {{-- Search --}}
+                        <div class="relative flex-1 max-w-sm">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-slate-400">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                </svg>
+                            </div>
+                            <input type="text"
+                                name="search"
+                                value="{{ request('search') }}"
+                                placeholder="Search by name or email..."
+                                class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
                         </div>
-                        <input
-                            id="tenant-search"
-                            type="search"
-                            x-model="q"
-                            placeholder="Search by name or email…"
-                            class="block w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition-all duration-150 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-md"
-                        />
+
+                        {{-- Lease Status Filter --}}
+                        <select name="status"
+                            onchange="this.form.submit()"
+                            class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                            <option value="">All Tenants</option>
+                            <option value="active"  {{ request('status') === 'active' ? 'selected' : '' }}>With Active Lease</option>
+                            <option value="none"    {{ request('status') === 'none'   ? 'selected' : '' }}>Without Lease</option>
+                        </select>
+
+                        {{-- Sort --}}
+                        <select name="sort"
+                            onchange="this.form.submit()"
+                            class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                            <option value="newest"   {{ request('sort', 'newest') === 'newest'   ? 'selected' : '' }}>Newest First</option>
+                            <option value="oldest"   {{ request('sort') === 'oldest'   ? 'selected' : '' }}>Oldest First</option>
+                            <option value="name_asc" {{ request('sort') === 'name_asc' ? 'selected' : '' }}>Name A–Z</option>
+                            <option value="name_desc"{{ request('sort') === 'name_desc'? 'selected' : '' }}>Name Z–A</option>
+                        </select>
                     </div>
                 </div>
+
+                {{-- Active filters --}}
+                @if(request()->hasAny(['search', 'status']))
+                    <div class="mb-4 flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                            Filters:
+                        </span>
+                        @if(request('search'))
+                            <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                "{{ request('search') }}"
+                            </span>
+                        @endif
+                        @if(request('status'))
+                            <span class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                {{ request('status') === 'active' ? 'With Active Lease' : 'Without Lease' }}
+                            </span>
+                        @endif
+                        <a href="{{ route('admin.tenants.index') }}"
+                           class="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                            Clear
+                        </a>
+                    </div>
+                @endif
+            </form>
+
+            {{-- Results summary --}}
+            <div class="mb-3">
+                <p class="text-sm text-slate-500">
+                    Showing
+                    <span class="font-semibold text-slate-700">{{ $tenants->firstItem() ?? 0 }}</span>
+                    to
+                    <span class="font-semibold text-slate-700">{{ $tenants->lastItem() ?? 0 }}</span>
+                    of
+                    <span class="font-semibold text-slate-700">{{ $tenants->total() }}</span>
+                    tenants
+                    @if(request()->hasAny(['search', 'status']))
+                        <span class="text-indigo-600 font-medium">(filtered)</span>
+                    @endif
+                </p>
             </div>
 
             @if($tenants->isEmpty())
@@ -201,7 +254,6 @@
                                     @endphp
                                     <tr
                                         class="transition-colors duration-150 hover:bg-indigo-50/30"
-                                        x-show="matches(@js($u?->name ?? ''), @js($u?->email ?? ''))"
                                     >
                                         <td class="px-4 py-3.5">
                                             <div class="flex items-center gap-3">

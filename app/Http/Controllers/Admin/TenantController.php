@@ -16,35 +16,69 @@ use Illuminate\View\View;
 
 class TenantController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $activeLeaseExists = function ($query): void {
-            $query->where('status', 'active')
-                ->whereDate('start_date', '<=', now())
-                ->whereDate('end_date', '>=', now());
-        };
+        $ownerId = auth()->id();
 
-        $tenants = Tenant::query()
-            ->where('owner_id', auth()->id())
-            ->with(['user', 'leases' => function ($query) {
-                $query->where('status', 'active')->with('unit.property');
-            }])
-            ->join('users', 'users.id', '=', 'tenants.user_id')
-            ->select('tenants.*')
-            ->orderBy('users.name')
-            ->paginate(10)
-            ->withQueryString();
+        $query = Tenant::where('owner_id', $ownerId)
+            ->with(['user', 'leases' => function ($q) {
+                $q->where('status', 'active')
+                    ->with('unit.property');
+            }]);
 
-        $totalTenants = Tenant::where('owner_id', auth()->id())->count();
-        $tenantsWithActiveLease = Tenant::where('owner_id', auth()->id())->whereHas('leases', $activeLeaseExists)->count();
-        $tenantsWithoutActiveLease = Tenant::where('owner_id', auth()->id())->whereDoesntHave('leases', $activeLeaseExists)->count();
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('user', function ($q) use ($search) {
+                $q->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        if ($request->filled('status')) {
+            if ($request->status === 'active') {
+                $query->whereHas('leases', fn ($q) => $q->where('status', 'active'));
+            } elseif ($request->status === 'none') {
+                $query->whereDoesntHave('leases', fn ($q) => $q->where('status', 'active'));
+            }
+        }
+
+        $sort = $request->get('sort', 'newest');
+
+        switch ($sort) {
+            case 'name_asc':
+                $query->join('users', 'users.id', '=', 'tenants.user_id')
+                    ->orderBy('users.name', 'asc')
+                    ->select('tenants.*');
+                break;
+            case 'name_desc':
+                $query->join('users', 'users.id', '=', 'tenants.user_id')
+                    ->orderBy('users.name', 'desc')
+                    ->select('tenants.*');
+                break;
+            case 'oldest':
+                $query->orderBy('tenants.created_at', 'asc');
+                break;
+            case 'newest':
+            default:
+                $query->orderBy('tenants.created_at', 'desc');
+                break;
+        }
+
+        $tenants = $query->paginate(10)->withQueryString();
+
+        $baseQuery = Tenant::where('owner_id', $ownerId);
+        $totalTenants = (clone $baseQuery)->count();
+        $withLease = (clone $baseQuery)->whereHas('leases', fn ($q) => $q->where('status', 'active'))->count();
+        $withoutLease = $totalTenants - $withLease;
 
         return view('admin.tenants.index', [
             'title' => 'Tenants',
             'tenants' => $tenants,
             'totalTenants' => $totalTenants,
-            'tenantsWithActiveLease' => $tenantsWithActiveLease,
-            'tenantsWithoutActiveLease' => $tenantsWithoutActiveLease,
+            'withLease' => $withLease,
+            'withoutLease' => $withoutLease,
             'unreadNotificationCount' => $this->unreadNotificationCount(),
         ]);
     }
