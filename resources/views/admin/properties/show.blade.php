@@ -14,6 +14,13 @@
             currentIndex: 0,
             images: @js($lightboxUrls),
             editOpen: false,
+            createUnitOpen: false,
+            newUnit: {
+                unit_number: '',
+                unit_type: 'Studio',
+                rent_price: '',
+                status: 'vacant'
+            },
             lateFeeOpen: false,
             lateFeeType: @js($property->late_fee_type ?? 'percentage'),
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
@@ -27,6 +34,9 @@
             @endif
             @if(old('_form') === 'edit_show' && $errors->any())
                 editOpen = true;
+            @endif
+            @if(old('_form') === 'create_unit_property' && $errors->any())
+                createUnitOpen = true;
             @endif
         "
         @keydown.escape.window="lightboxOpen = false"
@@ -154,13 +164,21 @@
                             <h2 class="text-base font-semibold text-slate-900">Units</h2>
                             <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{{ $property->units->count() }}</span>
                         </div>
-                        <a href="{{ route('admin.units.index') }}" class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500">Add Unit</a>
+                        <button
+                            type="button"
+                            @click="createUnitOpen = true"
+                            class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:scale-[0.98] transition-all duration-150">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Add Unit
+                        </button>
                     </div>
 
                     @if($property->units->isEmpty())
                         <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/80 py-12 text-center">
                             <p class="text-sm font-semibold text-slate-600">No units yet</p>
-                            <p class="mt-1 text-xs text-slate-400">Add a unit from the Units page.</p>
+                            <p class="mt-1 text-xs text-slate-400">Use <span class="font-semibold text-slate-600">Add Unit</span> above to create one for this property.</p>
                         </div>
                     @else
                         <div class="overflow-x-auto rounded-xl ring-1 ring-slate-100">
@@ -399,6 +417,182 @@
             <img :src="images[currentIndex]" class="max-h-[80vh] max-w-4xl rounded-xl object-contain px-16" alt="" />
             <div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm text-white">
                 <span x-text="currentIndex + 1"></span> / {{ $property->images->count() }}
+            </div>
+        </div>
+
+        {{-- Create Unit Modal --}}
+        <div
+            x-show="createUnitOpen"
+            x-cloak
+            class="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden"
+            role="dialog"
+            aria-modal="true">
+
+            {{-- Backdrop --}}
+            <div
+                class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+                @click="createUnitOpen = false">
+            </div>
+
+            {{-- Modal --}}
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl ring-1 ring-slate-100 overflow-hidden"
+                     @click.stop>
+
+                    {{-- Modal Header --}}
+                    <div class="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-white">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-white">Add Unit</h3>
+                                    <p class="text-xs text-indigo-200">
+                                        Add a new unit to {{ $property->name }}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                @click="createUnitOpen = false"
+                                class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Modal Body --}}
+                    <form action="{{ route('admin.units.store') }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="_form" value="create_unit_property" />
+
+                        {{-- Hidden: pre-fill property_id with current property --}}
+                        <input type="hidden" name="property_id" value="{{ $property->id }}" />
+
+                        <div class="px-6 py-5 space-y-4">
+
+                            {{-- Unit Number --}}
+                            <div>
+                                <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
+                                    </svg>
+                                    Unit Number <span class="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="unit_number"
+                                    x-model="newUnit.unit_number"
+                                    placeholder="e.g. 101, A1, Ground Floor"
+                                    required
+                                    class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+                                />
+                                @error('unit_number')
+                                    <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            {{-- Unit Type --}}
+                            <div>
+                                <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                                    </svg>
+                                    Unit Type <span class="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    name="unit_type"
+                                    x-model="newUnit.unit_type"
+                                    required
+                                    class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20">
+                                    <option value="Studio">Studio</option>
+                                    <option value="1BR">1BR</option>
+                                    <option value="2BR">2BR</option>
+                                    <option value="3BR">3BR</option>
+                                </select>
+                                @error('unit_type')
+                                    <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            {{-- Rent Price --}}
+                            <div>
+                                <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                                    </svg>
+                                    Rent Price <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">₱</span>
+                                    <input
+                                        type="number"
+                                        name="rent_price"
+                                        x-model="newUnit.rent_price"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        required
+                                        class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-8 pr-4 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+                                    />
+                                </div>
+                                @error('rent_price')
+                                    <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                            {{-- Status --}}
+                            <div>
+                                <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                                    </svg>
+                                    Status <span class="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    name="status"
+                                    x-model="newUnit.status"
+                                    required
+                                    class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20">
+                                    <option value="vacant">Vacant</option>
+                                    <option value="occupied">Occupied</option>
+                                </select>
+                                @error('status')
+                                    <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+
+                        </div>
+
+                        {{-- Modal Footer --}}
+                        <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4">
+                            <button
+                                type="button"
+                                @click="createUnitOpen = false"
+                                class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all duration-150 active:scale-[0.98]">
+                                Add Unit
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 

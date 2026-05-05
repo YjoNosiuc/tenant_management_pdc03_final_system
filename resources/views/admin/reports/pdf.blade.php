@@ -20,7 +20,7 @@
         .footer { margin: 32px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; }
         .page-break { page-break-after: always; }
         .summary-grid { display: table; width: 100%; margin-bottom: 16px; border-spacing: 8px 0; }
-        .summary-card { display: table-cell; padding: 12px 16px; background: #f8faff; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center; width: 25%; }
+        .summary-card { display: table-cell; padding: 12px 16px; background: #f8faff; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center; width: 33.33%; }
         .summary-card .value { font-size: 18px; font-weight: bold; color: #4F46E5; }
         .summary-card .label { font-size: 10px; color: #64748b; margin-top: 2px; }
     </style>
@@ -49,10 +49,6 @@
         <div class="summary-card">
             <div class="value">{{ $occupancyRate }}%</div>
             <div class="label">Occupancy Rate</div>
-        </div>
-        <div class="summary-card">
-            <div class="value">{{ $latePayments->count() }}</div>
-            <div class="label">Late Payments</div>
         </div>
     </div>
 </div>
@@ -107,47 +103,6 @@
             @endforeach
         </tbody>
     </table>
-</div>
-
-<div class="section">
-    <div class="section-title">
-        Late Payments — Total Fees: ₱{{ number_format($totalLateFees, 2) }}
-    </div>
-    @if($latePayments->count() > 0)
-        <table>
-            <thead>
-                <tr>
-                    <th>Tenant</th>
-                    <th>Property</th>
-                    <th>Unit</th>
-                    <th>Due Date</th>
-                    <th style="text-align:right">Rent (₱)</th>
-                    <th style="text-align:right">Late Fee (₱)</th>
-                    <th style="text-align:right">Total (₱)</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($latePayments as $payment)
-                    <tr>
-                        <td>{{ $payment->lease?->tenant?->user?->name ?? '—' }}</td>
-                        <td>{{ $payment->lease?->unit?->property?->name ?? '—' }}</td>
-                        <td>Unit {{ $payment->lease?->unit?->unit_number ?? '—' }}</td>
-                        <td>{{ $payment->due_date?->format('M d, Y') }}</td>
-                        <td style="text-align:right">₱{{ number_format((float) $payment->amount_paid, 2) }}</td>
-                        <td style="text-align:right">₱{{ number_format((float) $payment->late_fee_amount, 2) }}</td>
-                        <td style="text-align:right">₱{{ number_format((float) $payment->total_amount_due, 2) }}</td>
-                    </tr>
-                @endforeach
-                <tr class="total-row">
-                    <td colspan="5">TOTAL</td>
-                    <td style="text-align:right">₱{{ number_format($totalLateFees, 2) }}</td>
-                    <td style="text-align:right">₱{{ number_format($totalLateAmount, 2) }}</td>
-                </tr>
-            </tbody>
-        </table>
-    @else
-        <p style="color:#64748b; font-style:italic; padding: 16px 0;">No late payments in this period.</p>
-    @endif
 </div>
 
 <div class="footer">

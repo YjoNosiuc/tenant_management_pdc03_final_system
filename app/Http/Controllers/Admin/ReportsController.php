@@ -130,27 +130,6 @@ class ReportsController extends Controller
             $current->addMonth();
         }
 
-        $latePayments = Payment::whereHas('lease.unit.property',
-            fn ($q) => $q->where('owner_id', $ownerId)
-        )
-            ->whereIn('status', ['late', 'verifying_late'])
-            ->whereBetween('due_date', [$startDate, $endDate])
-            ->with(['lease.tenant.user', 'lease.unit.property'])
-            ->orderBy('due_date', 'desc')
-            ->get();
-
-        $totalLateAmount = (float) $latePayments->sum('total_amount_due');
-        $totalLateFees = (float) $latePayments->sum('late_fee_amount');
-
-        $lateByProperty = $latePayments->groupBy(fn ($p) => $p->lease?->unit?->property?->name ?? 'Unknown')
-            ->map(fn ($payments, $name) => [
-                'name' => $name,
-                'count' => $payments->count(),
-                'total' => (float) $payments->sum('total_amount_due'),
-            ])
-            ->sortByDesc('count')
-            ->values();
-
         $paymentStatusSummary = [];
         foreach (['pending', 'verifying', 'verifying_late', 'paid', 'late', 'rejected'] as $status) {
             $paymentStatusSummary[$status] = Payment::whereHas('lease.unit.property',
@@ -170,10 +149,6 @@ class ReportsController extends Controller
             'vacantUnits' => $vacantUnits,
             'occupancyRate' => $occupancyRate,
             'occupancyTrend' => $occupancyTrend,
-            'latePayments' => $latePayments,
-            'totalLateAmount' => $totalLateAmount,
-            'totalLateFees' => $totalLateFees,
-            'lateByProperty' => $lateByProperty,
             'paymentStatusSummary' => $paymentStatusSummary,
             'startDate' => $startDate,
             'endDate' => $endDate,

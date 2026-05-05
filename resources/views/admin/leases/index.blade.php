@@ -5,6 +5,17 @@
 @section('content')
     @php
         $leasePathPrefix = parse_url(route('admin.leases.index'), PHP_URL_PATH) ?: '/admin/leases';
+        $oldCreatePropertyId = null;
+        if (old('_form') === 'create' && old('unit_id') && ! empty($vacantUnitsByProperty ?? [])) {
+            foreach ($vacantUnitsByProperty as $pid => $units) {
+                foreach ($units as $u) {
+                    if ((string) ($u['id'] ?? '') === (string) old('unit_id')) {
+                        $oldCreatePropertyId = (string) $pid;
+                        break 2;
+                    }
+                }
+            }
+        }
     @endphp
 
     <div
@@ -14,8 +25,28 @@
             editOpen: false,
             deleteOpen: false,
             flashVisible: {{ session()->has('success') || session()->has('error') ? 'true' : 'false' }},
+            selectedPropertyId: '',
+            filteredUnits: [],
+            allVacantUnitsByProperty: @js($vacantUnitsByProperty ?? []),
             selectedLease: { id: null, tenant_id: '', unit_id: '', start_date: '', end_date: '', monthly_rent: '', deposit_amount: '', deposit_status: 'held', status: 'active', notes: '', inclusions: [] },
-            deleteLease: { id: null, tenant_name: '' }
+            deleteLease: { id: null, tenant_name: '' },
+            onLeasePropertyChange(propertyId) {
+                this.selectedPropertyId = propertyId;
+                this.selectedLease.unit_id = '';
+                this.selectedLease.monthly_rent = '';
+                if (propertyId && this.allVacantUnitsByProperty[propertyId]) {
+                    this.filteredUnits = this.allVacantUnitsByProperty[propertyId];
+                } else {
+                    this.filteredUnits = [];
+                }
+            },
+            onUnitSelect(unitId) {
+                if (!unitId) return;
+                const unit = this.filteredUnits.find(u => u.id == unitId);
+                if (unit) {
+                    this.selectedLease.monthly_rent = unit.rent_price;
+                }
+            }
         }"
         x-init="
             @if(session()->has('success') || session()->has('error'))
@@ -23,6 +54,12 @@
             @endif
             @if(old('_form') === 'create' && $errors->any())
                 createOpen = true;
+                @if($oldCreatePropertyId !== null)
+                    selectedPropertyId = @js($oldCreatePropertyId);
+                    filteredUnits = allVacantUnitsByProperty[selectedPropertyId] || [];
+                @endif
+                selectedLease.unit_id = @js((string) old('unit_id', ''));
+                selectedLease.monthly_rent = @js((string) old('monthly_rent', ''));
             @endif
             @if(old('_form') === 'edit' && $errors->any())
                 editOpen = true;
@@ -72,7 +109,7 @@
             <button
                 type="button"
                 class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-indigo-500 active:scale-[0.98]"
-                @click="createOpen = true"
+                @click="createOpen = true; selectedPropertyId = ''; filteredUnits = []; selectedLease.unit_id = ''; selectedLease.monthly_rent = ''"
             >
                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Add Lease
@@ -280,7 +317,7 @@
                     </div>
                     <p class="mt-5 text-base font-semibold text-slate-800">No leases yet</p>
                     <p class="mt-2 max-w-md text-sm text-slate-500">Create a lease to connect a tenant with a unit, set rent and deposit, and track status from this list.</p>
-                    <button type="button" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98]" @click="createOpen = true">
+                    <button type="button" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98]" @click="createOpen = true; selectedPropertyId = ''; filteredUnits = []; selectedLease.unit_id = ''; selectedLease.monthly_rent = ''">
                         <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                         Add Lease
                     </button>
@@ -425,7 +462,7 @@
 
         {{-- Create modal --}}
         <div x-show="createOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden" role="dialog" aria-modal="true" aria-labelledby="lease-create-title">
-            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="createOpen = false"></div>
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="createOpen = false; selectedPropertyId = ''; filteredUnits = []; selectedLease.unit_id = ''; selectedLease.monthly_rent = ''"></div>
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class="relative w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-100" @click.stop>
                     <div class="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5">
@@ -439,7 +476,7 @@
                                     <p class="text-xs text-indigo-200">Assign a tenant to a vacant unit and set lease terms.</p>
                                 </div>
                             </div>
-                            <button type="button" class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white transition-all hover:bg-white/20" @click="createOpen = false" aria-label="Close">
+                            <button type="button" class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-white transition-all hover:bg-white/20" @click="createOpen = false; selectedPropertyId = ''; filteredUnits = []; selectedLease.unit_id = ''; selectedLease.monthly_rent = ''" aria-label="Close">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -466,17 +503,61 @@
                                     </p>
                                 @enderror
                             </div>
+                            {{-- Property Selection --}}
+                            <div>
+                                <label class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
+                                    </svg>
+                                    Property <span class="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    x-model="selectedPropertyId"
+                                    @change="onLeasePropertyChange($event.target.value)"
+                                    class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20">
+                                    <option value="">Select Property</option>
+                                    @foreach($allProperties as $prop)
+                                        <option value="{{ $prop->id }}">{{ $prop->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-slate-400">Select a property to see its vacant units</p>
+                            </div>
+                            {{-- Unit (cascades from property) --}}
                             <div>
                                 <label for="create-unit" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3.5 w-3.5 text-slate-400" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
                                     Unit <span class="text-rose-500">*</span>
                                 </label>
-                                <select id="create-unit" name="unit_id" required class="block w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('unit_id') border-rose-300 ring-1 ring-rose-200 @enderror">
-                                    <option value="" disabled {{ old('_form') === 'create' && old('unit_id') ? '' : 'selected' }}>Select vacant unit</option>
-                                    @foreach($allVacantUnits as $unit)
-                                        <option value="{{ $unit->id }}" @selected(old('_form') === 'create' && (string) old('unit_id') === (string) $unit->id)>{{ $unit->unit_number }} — {{ $unit->property?->name ?? 'Property' }}</option>
-                                    @endforeach
+                                <select
+                                    id="create-unit"
+                                    name="unit_id"
+                                    x-model="selectedLease.unit_id"
+                                    @change="onUnitSelect($event.target.value)"
+                                    :disabled="!selectedPropertyId || filteredUnits.length === 0"
+                                    required
+                                    class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 disabled:opacity-50 disabled:cursor-not-allowed appearance-none @error('unit_id') border-rose-300 ring-1 ring-rose-200 @enderror">
+                                    <option value=""
+                                        x-text="!selectedPropertyId
+                                            ? 'Select a property first'
+                                            : (filteredUnits.length === 0
+                                                ? 'No vacant units in this property'
+                                                : 'Select vacant unit')">
+                                    </option>
+                                    <template x-for="unit in filteredUnits" :key="unit.id">
+                                        <option
+                                            :value="unit.id"
+                                            x-text="unit.label">
+                                        </option>
+                                    </template>
                                 </select>
+                                <p x-show="selectedPropertyId && filteredUnits.length === 0"
+                                   class="mt-1 text-xs text-rose-500 font-medium">
+                                    No vacant units available in this property.
+                                </p>
+                                <p x-show="!selectedPropertyId"
+                                   class="mt-1 text-xs text-slate-400">
+                                    Please select a property first
+                                </p>
                                 @error('unit_id')
                                     <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-3 w-3 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
@@ -519,7 +600,7 @@
                                 </label>
                                 <div class="relative">
                                     <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-semibold text-slate-400">₱</span>
-                                    <input id="create-rent" name="monthly_rent" type="number" step="0.01" min="0" value="{{ old('_form') === 'create' ? old('monthly_rent') : '' }}" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-8 pr-4 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('monthly_rent') border-rose-300 ring-1 ring-rose-200 @enderror" />
+                                    <input id="create-rent" name="monthly_rent" type="number" step="0.01" min="0" x-model="selectedLease.monthly_rent" required class="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-8 pr-4 text-sm text-slate-900 shadow-sm transition-all duration-150 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400/20 @error('monthly_rent') border-rose-300 ring-1 ring-rose-200 @enderror" />
                                 </div>
                                 @error('monthly_rent')
                                     <p class="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500">
@@ -638,7 +719,7 @@
                             </div>
                         </div>
                         <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4">
-                            <button type="button" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-50 active:scale-[0.98]" @click="createOpen = false">Cancel</button>
+                            <button type="button" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-50 active:scale-[0.98]" @click="createOpen = false; selectedPropertyId = ''; filteredUnits = []; selectedLease.unit_id = ''; selectedLease.monthly_rent = ''">Cancel</button>
                             <button type="submit" class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:opacity-90 active:scale-[0.98]">Create Lease</button>
                         </div>
                     </form>

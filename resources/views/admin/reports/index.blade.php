@@ -10,8 +10,6 @@
         $reportIncomeCounts = collect($monthlyIncome)->pluck('payments_count')->values()->all();
         $propertyChartLabels = $propertyBreakdown->pluck('name')->values()->all();
         $propertyChartValues = $propertyBreakdown->pluck('total_collected')->map(fn ($v) => (float) $v)->values()->all();
-        $occupancyChartLabels = collect($occupancyTrend)->pluck('month')->values()->all();
-        $occupancyChartRates = collect($occupancyTrend)->pluck('occupancy_rate')->map(fn ($v) => (float) $v)->values()->all();
     @endphp
 
     <div class="mx-auto max-w-7xl space-y-6">
@@ -81,7 +79,7 @@
             </div>
         </form>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
                 <p class="text-sm font-medium text-slate-500">Total Collected</p>
                 <p class="mt-2 text-2xl font-bold text-indigo-700">₱{{ number_format($totalCollected, 2) }}</p>
@@ -93,10 +91,6 @@
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
                 <p class="text-sm font-medium text-slate-500">Occupancy Rate</p>
                 <p class="mt-2 text-2xl font-bold text-emerald-700">{{ $occupancyRate }}%</p>
-            </div>
-            <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-                <p class="text-sm font-medium text-slate-500">Late Payments</p>
-                <p class="mt-2 text-2xl font-bold text-rose-700">{{ count($latePayments) }}</p>
             </div>
         </div>
 
@@ -213,9 +207,6 @@
         <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-4">
             <h2 class="text-base font-semibold text-slate-900">Occupancy Trend</h2>
             <p class="text-sm text-slate-400 mt-0.5 mb-6">Active leases vs total units by month</p>
-            <div class="relative h-64 mb-8">
-                <canvas id="occupancyChart"></canvas>
-            </div>
             <div class="overflow-x-auto rounded-xl ring-1 ring-slate-100">
                 <table class="min-w-full divide-y divide-slate-100 text-sm">
                     <thead class="bg-slate-50">
@@ -238,102 +229,6 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        {{-- Late payments --}}
-        <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-100 mt-4">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-6">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-900">Late Payments (including proof submitted)</h2>
-                    <p class="text-sm text-slate-400 mt-0.5">Overdue schedules in the selected period (late and verifying late)</p>
-                </div>
-                <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">
-                    Total late fees: ₱{{ number_format($totalLateFees, 2) }}
-                </span>
-            </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-8">
-                <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100 text-center">
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Late Payments</p>
-                    <p class="mt-1 text-xl font-bold text-slate-900">{{ count($latePayments) }}</p>
-                </div>
-                <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100 text-center">
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Late Fees</p>
-                    <p class="mt-1 text-xl font-bold text-rose-700">₱{{ number_format($totalLateFees, 2) }}</p>
-                </div>
-                <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100 text-center">
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Overdue Amount</p>
-                    <p class="mt-1 text-xl font-bold text-slate-900">₱{{ number_format($totalLateAmount, 2) }}</p>
-                </div>
-            </div>
-
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">By property</p>
-            <div class="overflow-x-auto rounded-xl ring-1 ring-slate-100 mb-8">
-                <table class="min-w-full divide-y divide-slate-100 text-sm">
-                    <thead class="bg-slate-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold text-slate-600">Property</th>
-                            <th class="px-4 py-3 text-right font-semibold text-slate-600">Late Count</th>
-                            <th class="px-4 py-3 text-right font-semibold text-slate-600">Total Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-50">
-                        @forelse($lateByProperty as $lp)
-                            <tr>
-                                <td class="px-4 py-3 font-medium">{{ $lp['name'] }}</td>
-                                <td class="px-4 py-3 text-right">{{ $lp['count'] }}</td>
-                                <td class="px-4 py-3 text-right font-semibold text-indigo-700">₱{{ number_format($lp['total'], 2) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="3" class="px-4 py-8 text-center text-sm text-slate-500 italic">No late payments by property.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Details</p>
-            @if($latePayments->isEmpty())
-                <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-12 text-center text-sm text-slate-500 italic">
-                    No late payments in this period.
-                </div>
-            @else
-                <div class="overflow-x-auto rounded-xl ring-1 ring-slate-100">
-                    <table class="min-w-full divide-y divide-slate-100 text-sm">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-600">Tenant</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-600">Property</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-600">Unit</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-600">Due Date</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-600">Rent</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-600">Late Fee</th>
-                                <th class="px-4 py-3 text-right font-semibold text-slate-600">Total</th>
-                                <th class="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-50 bg-white">
-                            @foreach($latePayments as $payment)
-                                <tr>
-                                    <td class="px-4 py-3 font-medium text-slate-800">{{ $payment->lease?->tenant?->user?->name ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-slate-600">{{ $payment->lease?->unit?->property?->name ?? '—' }}</td>
-                                    <td class="px-4 py-3">Unit {{ $payment->lease?->unit?->unit_number ?? '—' }}</td>
-                                    <td class="px-4 py-3">{{ $payment->due_date?->format('M d, Y') }}</td>
-                                    <td class="px-4 py-3 text-right">₱{{ number_format((float) $payment->amount_paid, 2) }}</td>
-                                    <td class="px-4 py-3 text-right">₱{{ number_format((float) $payment->late_fee_amount, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-semibold text-indigo-700">₱{{ number_format((float) $payment->total_amount_due, 2) }}</td>
-                                    <td class="px-4 py-3">
-                                        @php
-                                            $ls = $payment->status === 'verifying_late' ? 'Verifying (Late)' : 'Late';
-                                        @endphp
-                                        <span class="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">{{ $ls }}</span>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
         </div>
     </div>
 @endsection
@@ -426,53 +321,6 @@
                     y: {
                         grid: { display: false },
                         ticks: { font: { size: 10 } }
-                    }
-                }
-            }
-        });
-    }
-
-    const occCtx = document.getElementById('occupancyChart');
-    if (occCtx) {
-        new Chart(occCtx, {
-            type: 'line',
-            data: {
-                labels: @json($occupancyChartLabels),
-                datasets: [{
-                    label: 'Occupancy %',
-                    data: @json($occupancyChartRates),
-                    borderColor: 'rgba(79, 70, 229, 1)',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    fill: true,
-                    tension: 0.35,
-                    pointRadius: 4,
-                    pointBackgroundColor: 'rgba(79, 70, 229, 1)',
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => ctx.parsed.y + '% occupancy'
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: { color: 'rgba(0,0,0,0.04)' },
-                        ticks: {
-                            callback: (val) => val + '%',
-                            font: { size: 11 }
-                        }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 11 } }
                     }
                 }
             }

@@ -197,6 +197,16 @@ class UnitController extends Controller
 
         Unit::create($validated);
 
+        if ($request->input('_form') === 'create_unit_property') {
+            $property = Property::query()
+                ->where('owner_id', auth()->id())
+                ->findOrFail($validated['property_id']);
+
+            return redirect()
+                ->route('admin.properties.show', $property)
+                ->with('success', 'Unit added successfully.');
+        }
+
         return back()->with('success', 'Unit added successfully.');
     }
 

@@ -175,7 +175,6 @@
                                 <tr>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Due Date</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Amount</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Method</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
                                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Verified At</th>
                                 </tr>
@@ -190,14 +189,10 @@
                                             'rejected' => 'bg-rose-50 text-rose-800 ring-rose-100',
                                             default => 'bg-slate-100 text-slate-700 ring-slate-200',
                                         };
-                                        $methodLabel = $payment->payment_method
-                                            ? \Illuminate\Support\Str::headline(str_replace('_', ' ', $payment->payment_method))
-                                            : null;
                                     @endphp
                                     <tr class="transition-colors duration-200 hover:bg-slate-50">
                                         <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $payment->due_date?->format('M d, Y') }}</td>
                                         <td class="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">₱{{ number_format((float) $payment->amount_paid, 2) }}</td>
-                                        <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $methodLabel ?? '—' }}</td>
                                         <td class="whitespace-nowrap px-4 py-3">
                                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $payStatus }}">{{ ucfirst($payment->status) }}</span>
                                         </td>

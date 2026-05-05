@@ -33,7 +33,7 @@ class PaymentController extends Controller
 
         $paymentsByLease = [];
         foreach ($leases as $lease) {
-            $query = $lease->payments()->orderBy('due_date', 'desc');
+            $query = $lease->payments()->orderBy('due_date', 'asc');
             $paymentsByLease[] = [
                 'lease' => $lease,
                 'payments' => $query->paginate(10, ['*'], 'page_'.$lease->id),

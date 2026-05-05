@@ -114,16 +114,33 @@ class LeaseController extends Controller
             ->orderBy('unit_number')
             ->get();
 
+        $vacantUnitsByProperty = Unit::query()
+            ->whereHas('property', fn ($q) => $q->where('owner_id', $ownerId))
+            ->where('status', 'vacant')
+            ->with('property')
+            ->get()
+            ->groupBy('property_id')
+            ->map(fn ($units) => $units->map(fn ($unit) => [
+                'id' => $unit->id,
+                'unit_number' => $unit->unit_number,
+                'unit_type' => $unit->unit_type,
+                'rent_price' => $unit->rent_price,
+                'label' => 'Unit '.$unit->unit_number.' ('.$unit->unit_type.') — ₱'.number_format((float) $unit->rent_price, 0),
+            ]))
+            ->toArray();
+
         return view('admin.leases.index', [
             'title' => 'Leases',
             'leases' => $leases,
             'properties' => $properties,
+            'allProperties' => $properties,
             'units' => $units,
             'activeLeases' => $activeLeases,
             'completedLeases' => $completedLeases,
             'terminatedLeases' => $terminatedLeases,
             'allTenants' => $allTenants,
             'allVacantUnits' => $allVacantUnits,
+            'vacantUnitsByProperty' => $vacantUnitsByProperty,
             'tenants' => $this->tenantsForSelect(),
             'unitsForEdit' => $this->unitsForEditSelect(),
             'unreadNotificationCount' => $this->unreadNotificationCount(),
